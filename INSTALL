@@ -1,0 +1,10 @@
+Put the code into one directory, and compile the three CPP files:
+
+mex CGAL_minR.cpp
+mex CGAL_EllipseSize.cpp -I/opt/local/include -L/opt/local/lib -lCGAL -lgmp
+mex CGAL_RectSize.cpp -I/opt/local/include -L/opt/local/lib -lCGAL -lgmp
+
+Steps to run the code:
+1. read_binary()
+2. runImgProc()
+3. runSizeDist()
