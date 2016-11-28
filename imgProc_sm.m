@@ -39,6 +39,11 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname)
 %    * Updated by Will Wu, 07/11/2016
 %          New function name with the option to turn CGAL on and off for
 %          speed
+%    * Updated by Dan Stechman, 11/28/2016
+%          Changed definition of diode_stats variable to sum instances of *shadowed*
+%          particles (old version summed illuminated particles).
+%          Added boolean and associated code to calculate diode shadow frequency
+%          on a particle-by-particle basis.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
 
 %% Setting probe information according to probe type
@@ -49,6 +54,12 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname)
  
 
 iRectEllipse = 0;  % Set defualt to no Rectangle fit and Ellipse fit
+
+% Option to save diode stats for every particle
+% More than doubles filesize, and increase computation time
+% Only enable if actually needed
+calcAllDiodeStats = 0;
+
 switch probename
     case '2DC'
         boundary=[255 255 255 255];
@@ -183,7 +194,11 @@ varid32 = netcdf.defVar(f,'size_factor','double',dimid0);
 varid33 = netcdf.defVar(f,'holroyd_habit','double',dimid0);                               
 varid34 = netcdf.defVar(f,'area_hole_ratio','double',dimid0);                             
 varid35 = netcdf.defVar(f,'inter_arrival','double',dimid0);                               
-varid36 = netcdf.defVar(f,'bin_stats','double',dimid2);                                   
+varid36 = netcdf.defVar(f,'bin_stats','double',dimid2);
+if calcAllDiodeStats
+    varid37 = netcdf.defVar(f,'image_bin_stats','double',[dimid2 dimid0]);
+end
+
 netcdf.endDef(f)
 
 %% Variabels initialization 
@@ -384,8 +399,11 @@ for i=((n-1)*nEvery+1):min(n*nEvery,handles.img_count)
                 %% Determine the Particle Habit
                 %  We use the Holroyd algorithm here
                 handles.bits_per_slice = diodenum;
-                diode_stats = diode_stats + sum(c=='1',1);
-                csum = sum(c=='1',1);
+                if calcAllDiodeStats
+                    images.diode_stats(kk,:) = sum(c=='0',1); % Option to save diode stats for every particle
+                end
+                diode_stats = diode_stats + sum(c=='0',1);
+                csum = sum(c=='0',1);
 
                 images.holroyd_habit(kk) = holroyd(handles,c);
                 
@@ -507,6 +525,9 @@ for i=((n-1)*nEvery+1):min(n*nEvery,handles.img_count)
         netcdf.putVar ( f, varid34, wstart, w-wstart+1, images.area_hole_ratio);                      
         netcdf.putVar ( f, varid35, wstart, w-wstart+1, images.int_arrival);                          
         netcdf.putVar ( f, varid36, diode_stats );
+        if calcAllDiodeStats
+            netcdf.putVar ( f, varid37, [0 wstart], [diodenum w-wstart+1], images.diode_stats' ); % Option to save diode stats for every particle
+        end
         
         wstart = w+1;
         kk = 1;
