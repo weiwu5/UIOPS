@@ -59,8 +59,8 @@ iSaveIntArrSV = 1; % Default not to save inter-arrival and sample volume informa
 
 if length(varargin) == 1
 	iaThreshFile = varargin{1};
-else
-	display(['You screwed up'])
+elseif length(varargin)>1
+	display('You have added too many inputs!')
 	iaThreshFile = 'NONE';
 end
 
