@@ -1,4 +1,4 @@
-function imgProc_sm(infile, outfile, probename, n, nEvery, projectname)
+function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
 %  This function is the image processing part of OAP processing using 
 %  distributed memory parallisation. The function use one simple interface
@@ -13,6 +13,8 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname)
 %                 total frame number 
 %    projectname: The name of project so that you can write the specific
 %                 code for you data
+%    varargin :   OPTIONAL argument for the aircraft TAS file name
+%                 (HVPS/2DS proves only)
 %
 %  Note other important variables used in the program
 %    handles:  a structure to store information. It is convinient to use a
@@ -44,6 +46,11 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname)
 %          particles (old version summed illuminated particles).
 %          Added boolean and associated code to calculate diode shadow frequency
 %          on a particle-by-particle basis.
+%    * Updated by Joe Finlon, 03/03/2016
+%          Improved calculation of 'Time_in_seconds' variable for HVPS/2DS
+%          probes using the TAS from the aircraft data file (still requires
+%          diff('Time_in_seconds') to compute int-arr time in
+%          post-processing)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
 
 %% Setting probe information according to probe type
@@ -110,6 +117,11 @@ switch probename
         handles.diodenum  = 128; % Diode number
         handles.current_image = 1;
         probetype=2;
+        % TAS file info - Added by Joe Finlon - 03/03/17
+        tasFile = varargin{1};
+        tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+        tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+        disp(['Using TAS data from ', tasFile])
 
     case '2DS'
         boundary=[43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
@@ -120,6 +132,11 @@ switch probename
         handles.diodenum  = 128; % Diode number
         handles.current_image = 1;
         probetype=2;
+        % TAS file info - Added by Joe Finlon - 03/03/17
+        tasFile = varargin{1};
+        tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+        tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+        disp(['Using TAS data from ', tasFile])
 end
 
 diodenum = handles.diodenum;
@@ -371,18 +388,49 @@ for i=((n-1)*nEvery+1):min(n*nEvery,handles.img_count)
                     particle_partNum(kk)=double(data(header_loc,5));
                     particle_sliceCount(kk)=double(data(header_loc,6));
 
-                    part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8));       % Interarrival time in tas clock cycles
+                    part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8));       % Interarrival time in clock cycles
                     part_micro(kk) = part_time;
                     part_mil(kk)   = 0;
                     part_sec(kk)   = 0;
                     part_min(kk)   = 0;
                     part_hour(kk)  = 0;
-                    time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/170);
-                    if(kk>1)
-                        images.int_arrival(kk) = part_time-part_micro(kk-1); 
+                    
+                    % -----------------------------------------------------
+                    % calculate the particle time (in seconds) - Added by Joe Finlon - 03/03/17
+                    tempTime = double(handles.hour)*10000+double(handles.minute)*100+double(handles.second); % image record time in HHMMSS
+                    tas2d = tas(tasTime==tempTime); % get TAS for corresponding time period
+                    
+                    if exist('part_time_prev', 'var')
+                        if isempty(tas2d)
+                            time_in_seconds(kk) = time_in_seconds_prev+...
+                                (part_time-part_time_prev)*(handles.diodesize/(10^3)/170); % use when no TAS data is available for current time
+                        else
+                            time_in_seconds(kk) = time_in_seconds_prev+...
+                                (part_time-part_time_prev)*(handles.diodesize/(10^3)/tas2d); % use the TAS to convert clock cycles to time
+                        end
+                    else % run for the first particle in data file
+                        if isempty(tas2d)
+                            time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/170);
+                        else
+                            time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/tas2d);
+                        end
+                    end
+                    
+                    if(kk>1) % ** Use diff(time_in_seconds) to compute int-arr time in post-processing **
+                        images.int_arrival(kk) = time_in_seconds(kk)-time_in_seconds(kk-1);
                     else
                         images.int_arrival(kk) = 0;
                     end
+                    
+                    part_time_prev = part_time; % assign the clock cycle for use in next iteration
+                    time_in_seconds_prev = time_in_seconds(kk);
+                    % -----------------------------------------------------
+%                     time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/170);
+%                     if(kk>1)
+%                         images.int_arrival(kk) = part_time-part_micro(kk-1); 
+%                     else
+%                         images.int_arrival(kk) = 0;
+%                     end
                 end
                 
                 temptimeinhhmmss = part_hour(kk) * 10000 + part_min(kk) * 100 + part_sec(kk);
