@@ -35,6 +35,10 @@
 %    Bug fix for calculation of 'n' and 'count' to un-normalize by binwidth.
 %    Bug fix when syncing particle time with flight time.
 %           Joe Finlon, 03/03/2017
+%   * Added probe default settings for GCPEx campaign
+%           Joe Finlon, 06/05/2017
+%   * Added metadata for netCDF output & fixed handling of 2DC/2DP data.
+%           Joe Finlon, 06/26/17
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -51,8 +55,8 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmethod, Pres, Temp, projectname, ddate, varargin)
-iCreateBad = 1; % Default not to output bad particles PSDs and other info
-iCreateAspectRatio = 1; % Default not to process aspect ratio info
+iCreateBad = 0; % Default not to output bad particles PSDs and other info
+iCreateAspectRatio = 0; % Default not to process aspect ratio info
 iSaveIntArrSV = 1; % Default not to save inter-arrival and sample volume information
 %% Interarrival threshold file specification
 % Can be implemented if a time-dependent threshold is required - add 'varargin' to arguments in function header above
@@ -151,7 +155,6 @@ switch projectname
     case 'GPM'
         switch probename
             case '2DS'
-                % For the 2DS
                 num_diodes =128;
                 diodesize = .010;
                 armdst=63.;
@@ -167,9 +170,28 @@ switch projectname
                 applyIntArrThresh = 1;
 					defaultIntArrThresh = 1e-6;
 				reaccptShatrs = 1;
-					reaccptD = 0.5; 
-					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])                
-                                
+					reaccptD = 0.5;
+                    %reaccptMaxIA = 1e-7; % (Slice size [m])/(avg. airspeed [m/s])
+					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
+                    
+            case 'CIP'
+                num_diodes =64;
+                diodesize = 0.025; % units of mm
+                armdst=100.;
+                num_bins=19;
+                kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
+                    700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000; %Array in microns - converted to mm
+                probetype=1;
+                tasMax=200; % Max airspeed that can be sampled without under-sampling (images would appear skewed)
+                
+				applyIntArrThresh = 1;
+					defaultIntArrThresh = 1e-6;
+				reaccptShatrs = 1;
+					reaccptD = 0.5; % Diammeter (in mm) to reaccept if initially flagged as shattered
+					reaccptMaxIA = 2.5e-7;	% Max interarrival time in seconds a particle can have to be reaccepted if 
+											% size criteria are met. Possible definition of this is the time of one slice, so in
+											% this case, with an airspeed of ~100 m/s and a slice of 25 um, this would be 2.5e-7.
+                                               
             case 'HVPS'
                 % For the HVPS
                 num_diodes =128;
@@ -482,28 +504,30 @@ loopedAutoRej = [];
 [~, NumofPart] = netcdf.inqDim(f,0); % Check the number of particles
 
 if 1==probetype
-   image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'particle_time'));
+    image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'particle_time'));
 elseif 2==probetype
-   image_time_hhmmssallbuffer = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
+    image_time_hhmmssallbuffer = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
 %    image_time_hhmmssallbuffer(image_time_hhmmssallbuffer<10000 & image_time_hhmmssallbuffer>=0)=image_time_hhmmssallbuffer(image_time_hhmmssallbuffer<10000 & image_time_hhmmssallbuffer>=0)+240000;
-   alltimeinseconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'));
-   time_msec_all = netcdf.getVar(f,netcdf.inqVarID(f,'msec'),0,1);
+    alltimeinseconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'));
+    time_msec_all = netcdf.getVar(f,netcdf.inqVarID(f,'msec'),0,1);
   
-   indexRollback=find(diff(alltimeinseconds)<-250)+1;
-   
-   for i=1:length(indexRollback)
-       alltimeinseconds(indexRollback(i):end)=alltimeinseconds(indexRollback(i):end)+(2^32-1)*(res/10^6/tasMax);
-   end
+    indexRollback=find(diff(alltimeinseconds)<-250)+1;
+    for i=1:length(indexRollback)
+        if mod(i,1000)==0
+            disp([num2str(i),' / ',num2str(length(indexRollback)),datestr(now)]) % Joe Finlon
+        end
+        alltimeinseconds(indexRollback(i):end)=alltimeinseconds(indexRollback(i):end)+(2^32-1)*(res/10^6/tasMax);
+    end
    
 %    alltimeinsecondsstart=alltimeinseconds(indexBuffert);
 %    increaseAllinseconds= alltimeinseconds-alltimeinseconds(1);
 %    increaseAllinseconds(increaseAllinseconds<0)=increaseAllinseconds(increaseAllinseconds<0)+(2^32-1)*(res/10^6/170);
 %    image_time_hhmmssall = insec2hhmmss(floor(47069+time_msec_all(1)/1000.0+increaseAllinseconds*170/110));
-   image_time_hhmmssall = image_time_hhmmssallbuffer;
+    image_time_hhmmssall = image_time_hhmmssallbuffer;
 else
-   image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
+    image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
 end
-
+disp('Performing time correction.') % Joe Finlon
 % image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
 % image_time_hhmmssall(image_time_hhmmssall<50000 & image_time_hhmmssall>=0)=image_time_hhmmssall(image_time_hhmmssall<50000 & image_time_hhmmssall>=0)+120000;
 
@@ -574,6 +598,7 @@ count_all(count_all<0)=1;
 
 %% Main loop over the length of the true air speed variable (1-sec resolution)
 jjj=1;
+eofFlag=0; % end of the particle data flag - Added by Joe Finlon - 03/03/17
 
 sumIntArrGT1 = 0;
 intArrGT1 = [];
@@ -585,17 +610,25 @@ fprintf('Beginning size distribution calculations and sorting %s\n\n',datestr(no
 
 for i=1:length(tas) 
     
-    if (int32(timehhmmss(i))>=int32(starttime(jjj)))
+%     if (int32(timehhmmss(i))>=int32(starttime(jjj)))
+    if (eofFlag==0 && int32(timehhmmss(i))>=int32(starttime(jjj))) % Modified by Joe Finlon - 03/03/17
         
         % Attempt to sync TAS file time (timehhmmss) with particle time
 %         if (int32(timehhmmss(i))>int32(starttime(jjj))) %% Deprecated
 %         (Joe Finlon - 03/03/17)
         while (int32(timehhmmss(i))>int32(starttime(jjj))) % Added by Joe Finlon - 03/03/17
             jjj=jjj+1;
-            
-            if (jjj>length(start_all))
-                break;
+            if (jjj==length(start_all)) % we've reached the end of the particle data - Added by Joe Finlon - 03/03/17
+                eofFlag = 1;
             end
+            
+%             if (jjj>length(start_all))
+%                 break;
+%             end
+        end
+        
+        if (jjj==length(start_all)) % we've reached the end of the particle data - Added by Joe Finlon - 03/03/17
+            eofFlag = 1;
         end
         
         start=start_all(jjj);
@@ -625,7 +658,9 @@ for i=1:length(tas)
 
         Time_in_seconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count);
 %         SliceCount = netcdf.getVar(f,netcdf.inqVarID(f,'SliceCount'),start,count); %Unused
-        DMT_DOF_SPEC_OVERLOAD = netcdf.getVar(f,netcdf.inqVarID(f,'DMT_DOF_SPEC_OVERLOAD'),start,count);
+        if probetype~=0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
+            DMT_DOF_SPEC_OVERLOAD = netcdf.getVar(f,netcdf.inqVarID(f,'DMT_DOF_SPEC_OVERLOAD'),start,count);
+        end
         Particle_count = netcdf.getVar(f,netcdf.inqVarID(f,'Particle_number_all'),start,count);
         
         if 1==probetype
@@ -762,7 +797,11 @@ for i=1:length(tas)
             image_time_hhmmssnew = image_time_hhmmss;
         end
         %}
-        time_interval72(i) = sum(int_arr(DMT_DOF_SPEC_OVERLOAD~=0));
+        if probetype==0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
+            time_interval72(i) = 0; % 2DC/2DP does not have overload flag
+        else
+            time_interval72(i) = sum(int_arr(DMT_DOF_SPEC_OVERLOAD~=0));
+        end
         
         % Simplified by DS - Removed image_time_hhmmssnew as it was defined by and never changed from image_time_hhmmss
         image_time_hhmmss = image_time_hhmmssall(start+1:start+count);
@@ -1428,7 +1467,8 @@ for i=1:length(tas)
         end
         end
         warning on all
-    elseif (int32(timehhmmss(i))<int32(starttime(jjj)))
+%     elseif (int32(timehhmmss(i))<int32(starttime(jjj)))
+    elseif (eofFlag==1 || int32(timehhmmss(i))<int32(starttime(jjj))) % Modified by Joe Finlon - 03/03/17
 
        particle_dist_minR(i,1:num_bins) = NaN;
        particle_dist_AreaR(i,1:num_bins) = NaN;
@@ -1602,6 +1642,73 @@ dimid0 = netcdf.defDim(mainf,'CIPcorrlen',num_bins);
 dimid1 = netcdf.defDim(mainf,'CIParealen',10);
 dimid2 = netcdf.defDim(mainf,'Time',length(timehhmmss));
 dimid3 = netcdf.defDim(mainf,'Habit',10);
+
+% Define Global Attributes
+NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
+netcdf.putAtt(mainf, NC_GLOBAL, 'Software', 'UIOPS/sizeDist');
+netcdf.putAtt(mainf, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
+netcdf.putAtt(mainf, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
+netcdf.putAtt(mainf, NC_GLOBAL, 'Description', ['Contains size distributions of ',...
+    'particle count, mass, etc. & various bulk properties.']);
+netcdf.putAtt(mainf, NC_GLOBAL, 'Project', projectname);
+netcdf.putAtt(mainf, NC_GLOBAL, 'Data Source', infile);
+netcdf.putAtt(mainf, NC_GLOBAL, 'Probe Type', probename);
+if SAmethod==0
+    netcdf.putAtt(mainf, NC_GLOBAL, 'SA Method', 'Center-in');
+elseif SAmethod==1
+    netcdf.putAtt(mainf, NC_GLOBAL, 'SA Method', 'Entire-in');
+elseif SAmethod==2
+    netcdf.putAtt(mainf, NC_GLOBAL, 'SA Method', 'Using Heymsfield & Parrish (1978) correction');
+end
+if d_choice==1
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'L_x');
+elseif d_choice==2
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'L_y');
+elseif d_choice==3
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'mean(L_x,L_y)');
+elseif d_choice==4
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'hypotenuse(L_x,L_y)');
+elseif d_choice==5
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'max(L_x,L_y)');
+elseif d_choice==6
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Dmax Definition', 'D of minimum enclosing circle');
+end
+if applyIntArrThresh && reaccptShatrs
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Shattering Algorithm',...
+        'Applied w/ reacceptance of particles');
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Reacceptance Criteria',...
+        ['D > ', num2str(reaccptD*1000), ' um; inter-arrival < ',...
+        num2str(reaccptMaxIA), ' sec'])
+elseif applyIntArrThresh && ~reaccptShatrs
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Shattering Algorithm',...
+        'Applied without reacceptance of particles');
+else
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Shattering Algorithm', 'Not applied');
+end
+if iCreateBad && iCreateAspectRatio && iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs from rejected particles, SDs w/ aspect ratio, Sample volume info');
+elseif iCreateBad && ~iCreateAspectRatio && iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs from rejected particles, Sample volume info');
+elseif iCreateBad && iCreateAspectRatio && ~iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs from rejected particles, SDs w/ aspect ratio');
+elseif iCreateBad && ~iCreateAspectRatio && ~iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs from rejected particles');
+elseif ~iCreateBad && iCreateAspectRatio && iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs w/ aspect ratio, Sample volume info');
+elseif ~iCreateBad && ~iCreateAspectRatio && iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'Sample volume info');
+elseif ~iCreateBad && iCreateAspectRatio && ~iSaveIntArrSV
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved',...
+        'SDs w/ aspect ratio');
+else
+    netcdf.putAtt(mainf, NC_GLOBAL, 'Optional Parameters Saved', 'None');
+end
 
 % Define Variables
 varid0 = netcdf.defVar(mainf,'time','double',dimid2); 
