@@ -390,12 +390,12 @@ switch projectname
 end
 
 if applyIntArrThresh && ~reaccptShatrs
-	fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\n',projectname,ddate,probename);
+	fprintf('Beginning sizeDist.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\n',projectname,ddate,probename);
 elseif applyIntArrThresh && reaccptShatrs
-	fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\t- Shatter reacceptance\n\n',...
+	fprintf('Beginning sizeDist.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\t- Shatter reacceptance\n\n',...
 		projectname,ddate,probename);
 else
-	fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\n',projectname,ddate,probename);
+	fprintf('Beginning sizeDist.m for %s %s - %s probe\n\n',projectname,ddate,probename);
 end
 
 res=diodesize*1000;
@@ -658,10 +658,12 @@ for i=1:length(tas)
 
         Time_in_seconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count);
 %         SliceCount = netcdf.getVar(f,netcdf.inqVarID(f,'SliceCount'),start,count); %Unused
-        if probetype~=0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
+        if probetype~=0 % skip reading variables if 2DC/2DP - Joe Finlon - 06/26/17
             DMT_DOF_SPEC_OVERLOAD = netcdf.getVar(f,netcdf.inqVarID(f,'DMT_DOF_SPEC_OVERLOAD'),start,count);
+            Particle_count = netcdf.getVar(f,netcdf.inqVarID(f,'Particle_number_all'),start,count);
+            TotalPC1(i)=length(Particle_count);        
+            TotalPC2(i)=Particle_count(end)-Particle_count(1);
         end
-        Particle_count = netcdf.getVar(f,netcdf.inqVarID(f,'Particle_number_all'),start,count);
         
         if 1==probetype
             auto_reject(DMT_DOF_SPEC_OVERLOAD~=0)='D';
@@ -672,10 +674,6 @@ for i=1:length(tas)
             aspectRatio1 = netcdf.getVar(f,netcdf.inqVarID(f,'image_EllipseW'),start,count)./netcdf.getVar(f,netcdf.inqVarID(f,'image_EllipseL'),start,count);
         end
 
-        TotalPC1(i)=length(Particle_count);        
-        TotalPC2(i)=Particle_count(end)-Particle_count(1);
-			
-        
         if 0==probetype
             int_arr=Time_in_seconds;
 		else
