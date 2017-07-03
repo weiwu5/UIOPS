@@ -5,7 +5,7 @@
 % Copyright Joseph Finlon, Univ. Illinois 2017.
 % 
 %% Stitch Together 2DS File (Original File too Large for GitHub)
-fprintf('Initializing data files.')
+fprintf('Initializing data files.\n')
 fileDirectory = [pwd, '/'];
 date = '20151205';
 
@@ -61,8 +61,6 @@ end
 
 %% Populate Input Variables
 % Using 05 December 2015 case from OLYMPEX (partial flight)
-
-clearvars;
 
 projectName = 'GPM'; % will use predefined probe settings already in sizeDist.m
 probeName = {'2DS', 'HVPS'}; % use both '2DS' and 'HVPS' for this example

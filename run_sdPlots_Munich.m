@@ -185,7 +185,7 @@ ln5 = plot(timeArray, 1000*N1000, 'g', 'LineWidth', 2);
 datetick('x', 'keeplimits'); ylim([0 10]);
 xlabel('Time (UTC)'); ylabel('N (L^{-1})');
 leg2 = legend({'N_{>100}', 'N_{100-400}', 'N_{400-1000}', 'N_{>1000}'},...
-    'Location', 'northwest', 'fontsize', 8); set(leg2, 'box', 'off');
+    'Location', 'northeast', 'fontsize', 8); set(leg2, 'box', 'off');
 
 % Averaged N(D)
 p(3) = subplot(2,2,4);
@@ -193,6 +193,8 @@ st1 = stairs(binMin, ndf_avg, 'k', 'LineWidth', 2);
 xlim([0.1 10]);
 set(gca, 'XScale', 'log', 'YScale', 'log', 'XMinorTick', 'on', 'YMinorTick', 'on');
 xlabel('D_{max} (mm)'); ylabel('N(D_{max}) (cm^{-4})');
+
+print([fileDirectory, 'ConcentrationPlots_' , date, '.jpg'],'-djpeg','-r300')
 
 % % Time series IWC
 % subplot(2,2,4);
@@ -219,3 +221,5 @@ st4 = stairs(binMin, area_avg, 'k', 'LineWidth', 2); hold on;
 xlim([0.1 10]);
 set(gca, 'XScale', 'log', 'YScale', 'log', 'XMinorTick', 'on', 'YMinorTick', 'on');
 xlabel('D_{max} (mm)'); ylabel('A(D_{max}) (mm^2 cm^{-4})');
+
+print([fileDirectory, 'MassAreaPlots_' , date, '.jpg'],'-djpeg','-r300')
