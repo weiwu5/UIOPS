@@ -4,6 +4,12 @@ function read_binary_SPEC(infilename,outfilename)
 %% Read the raw base*.2DS file, and then write into NETCDF file 
 %% Follow the SPEC manual 
 %%  by Will Wu, 08/01/2014
+%%  **************************
+%   *** Modification Notes ***
+%   **************************
+%   * Modified to prevent termination during rare instance when attempting
+%   to decode beyond the image buffer
+%               Joe Finlon, 03/08/2017
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -21,6 +27,7 @@ for i = 1:filenums
     if filenums > 1
         infilename = [filedir,files(i).name];
     end
+    disp(['Raw File: ', infilename])
     
     if outfilename == '1'
         slashpos = find(infilename == '.',1,'last');
@@ -76,7 +83,7 @@ for i = 1:filenums
     while feof(fid)==0 && endfile == 0 
         %tic
         [year,month, wkday,day, hour, minute, second, millisec, data, discard]=readRecord(fid);         
-        timebuffer = [year,month,day, hour, minute, second, millisec]
+        %timebuffer = [year,month,day, hour, minute, second, millisec]
         %fprintf(formatSpec,A1,A2)
         [year1,month1, wkday1,day1, hour1, minute1, second1, millisec1, data1, discard1]=readRecord(fid);
         %fseek(fid,-4114,'cof');
@@ -88,13 +95,13 @@ for i = 1:filenums
         sizeimg= size(imgH);
         if sizeimg(2)>1700
             imgH=imgH(:,1:1700);
-            sizeimg(2)
+            %sizeimg(2)
         end
         
         sizeimg= size(imgV);
         if sizeimg(2)>1700
             imgV=imgV(:,1:1700);
-            sizeimg(2)
+            %sizeimg(2)
         end
         
         if sum(sum(imgH))~=0
@@ -211,16 +218,19 @@ function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
               iii=iii+5;
               if bHTiming~=0 || bVTiming~=0     
                   iii=iii+nH+nV;
-              elseif nH~=0
+%               elseif nH~=0
+              elseif nH~=0 && iii+nH-1<=length(buf) % Watch for index outside of image buffer - Added by Joe Finlon - 03/08/17
                   jjj=1;
                   kkk=0;
-                  while jjj<=nS && kkk<nH-2 % Last two slice is time
+%                   while jjj<=nS && kkk<nH-2 % Last two slice is time
+                  while iii+kkk<=length(buf) && jjj<=nS && kkk<nH-2 % Added by Joe Finlon - Last 2 slices is the time - 03/08/17
                       aa=bitand(buf(iii+kkk),16256)/2^7;  %bin2dec('0011111110000000')
                       bb=bitand(buf(iii+kkk),127); %bin2dec('0000000001111111')
                       imgH(min(128,bb+1):min(aa+bb,128),iSlice+jjj)=1;
                       bBase=min(aa+bb,128);
                       kkk=kkk+1;
-                      while( bitand(buf(iii+kkk),16384)==0  && kkk<nH-2) % bin2dec('1000000000000000')
+%                       while( bitand(buf(iii+kkk),16384)==0  && kkk<nH-2) % bin2dec('1000000000000000')
+                      while( iii+kkk<=length(buf) && bitand(buf(iii+kkk),16384)==0  && kkk<nH-2) % Added by Joe Finlon - 03/08/17
                           aa=bitand(buf(iii+kkk),16256)/2^7;
                           bb=bitand(buf(iii+kkk),127);
                           imgH(min(128,bBase+bb+1):min(bBase+aa+bb,128),iSlice+jjj)=1;
@@ -242,16 +252,19 @@ function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
                   imgH(81:96,iSlice)=dec2bin(nS,16)-48;
                   iii=iii+nH;
 
-              elseif nV~=0
+%               elseif nV~=0
+              elseif nV~=0 && iii+nV-1<=length(buf) % Watch for index outside of image buffer - Added by Joe Finlon - 03/08/17
                   jjj=1;
                   kkk=0;
-                  while jjj<=nS && kkk<nV-2 % Last two slice is time
+%                   while jjj<=nS && kkk<nV-2 % Last two slice is time
+                  while iii+kkk<=length(buf) && jjj<=nS && kkk<nV-2 % Added by Joe Finlon - Last 2 slices is the time - 03/08/17
                       aa=bitand(buf(iii+kkk),16256)/2^7;  %bin2dec('0011111110000000')
                       bb=bitand(buf(iii+kkk),127); %bin2dec('0000000001111111')
                       imgV(min(128,bb+1):min(aa+bb,128),iSlice+jjj)=1;
                       bBase=min(aa+bb,128);
                       kkk=kkk+1;
-                      while( bitand(buf(iii+kkk),16384)==0  && kkk<nV-2) % bin2dec('1000000000000000')
+%                       while( bitand(buf(iii+kkk),16384)==0  && kkk<nV-2) % bin2dec('1000000000000000')
+                      while( iii+kkk<=length(buf) && bitand(buf(iii+kkk),16384)==0  && kkk<nV-2) % Added by Joe Finlon - 03/08/17
                           aa=bitand(buf(iii+kkk),16256)/2^7;
                           bb=bitand(buf(iii+kkk),127);
                           imgV(min(128,bBase+bb+1):min(bBase+aa+bb,128),iSlice+jjj)=1;
