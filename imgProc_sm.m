@@ -155,9 +155,17 @@ size_mat = dimlen;
 warning off all
 diode_stats = zeros(1,diodenum);
 
-if strcmp(projectname, 'PECAN')  % For example for PECAN dataset 
-    disp('Testing...')  %% Add project specific code if you like
-end
+%if strcmp(projectname, 'PECAN')  % For example for PECAN dataset 
+%    if strcmp(probename, 'PIP')
+%        TimeOffsetSec = -12*3600.0;
+%        TimeOffsetSec_pos = TimeOffsetSec * -1;
+%        temp_offsethhmmss = insec2hhmmss(TimeOffsetSec_pos);
+%        part_hour_offset = -1 * (floor(temp_offsethhmmss/10000));
+%        part_min_offset = -1 * (floor(mod(temp_offsethhmmss,10000)/100));
+%        part_sec_offset = -1 * (floor(mod(temp_offsethhmmss,100)));
+%    end
+%end
+
 %% Create output NETCDF file and variables
 f = netcdf.create(outfile, 'clobber');
 dimid0 = netcdf.defDim(f,'time',netcdf.getConstant('NC_UNLIMITED'));
@@ -400,6 +408,7 @@ netcdf.endDef(f)
 kk=1;
 w=-1;
 wstart = 0;
+firstTime = 1; % Used only for time offset correction (PECAN)
 
 time_offset_hr = 0;
 time_offset_mn = 0;
@@ -553,6 +562,30 @@ for i=((n-1)*nEvery+1):min(n*nEvery,handles.img_count)
                     particle_partNum(kk)=bin2dec([dec2bin(data(start-1,7),8),dec2bin(data(start-1,8),8)]);
 
                     time_in_seconds(kk) = part_hour(kk) * 3600 + part_min(kk) * 60 + part_sec(kk) + part_mil(kk)/1000 + part_micro(kk);
+                    
+                    % Deprecated - can be used to apply project/date specific time offset corrections
+                    %{
+                    if (exist('TimeOffsetSec') && TimeOffsetSec ~= 0 && (handles.month ~= 7 && handles.day ~= 1))
+                    	if (firstTime == 1 && kk == 1)
+                    		fprintf('Time correction applied to %s: %d seconds\n',probename,TimeOffsetSec);
+                    	end
+						%fprintf('Time in seconds before correction: %d\n',time_in_seconds(kk));
+						%fprintf('Particle hour before correction: %d\n',part_hour(kk));
+						%fprintf('Particle minute before correction: %d\n',part_min(kk));
+						%fprintf('Particle sec before correction: %d\n',part_sec(kk));
+						
+						time_in_seconds(kk) = time_in_seconds(kk) + TimeOffsetSec;
+						part_hour(kk) = part_hour(kk) + part_hour_offset;
+						part_min(kk) = part_min(kk) + part_min_offset;
+						part_sec(kk) = part_sec(kk) + part_sec_offset;
+						
+						%fprintf('Time in seconds after correction: %d\n',time_in_seconds(kk));
+						%fprintf('Particle hour after correction: %d\n',part_hour(kk));
+						%fprintf('Particle minute after correction: %d\n',part_min(kk));
+						%fprintf('Particle sec after correction: %d\n',part_sec(kk));
+					end
+					%}
+					
                     if kk > 1
                         images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
                     else
@@ -780,6 +813,7 @@ for i=((n-1)*nEvery+1):min(n*nEvery,handles.img_count)
 
     end
     clear images
+    firstTime = 0; % Only used when probe time offset correction is applied (PECAN)
 end
 warning on all
 
