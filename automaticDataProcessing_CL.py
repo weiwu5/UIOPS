@@ -28,9 +28,9 @@ imgProc     = args.imgProc
 sizeDist    = args.sizeDist
 
 
-inOutDir = '/data/pecan/a/stechma2/pecan/mp-data/IProcessingRelease/'
+inOutDir = '/data/pecan/a/stechma2/pecan/mp-data/UIOPS/'
 
-os.chdir('/data/pecan/a/stechma2/pecan/mp-data/IProcessingRelease')
+os.chdir('/data/pecan/a/stechma2/pecan/mp-data/UIOPS')
 
 os.system('source ~/.bashrc')
 
@@ -39,13 +39,13 @@ print('Starting UIOPS processing for PECAN ' + ddate)
 if decompress:
     if runCIP:
         print('Starting decompression of raw CIP image data... ' + dt.strftime(dt.now(),'%H:%M:%S %Y%m%d'))
-        os.system('/sw/matlab-r2016b/bin/matlab -nodisplay -r "runalldecompCIP(' + ddate  + ')"')
+        os.system('/sw/matlab-r2015a/bin/matlab -nodisplay -r "runalldecompCIP(' + ddate  + ')"')
         print('CIP Image decompression complete. Starting netCDF concatenation... ' + dt.strftime(dt.now(),'%H:%M:%S %Y%m%d'))
         os.system('ncrcat -O ' + inOutDir + 'DIMG.CIP.' + ddate + '* ' +'DIMG.CIP.' + ddate + '.cdf')
     
     if runPIP:
         print('Starting decompression of raw PIP image data... ' + dt.strftime(dt.now(),'%H:%M:%S %Y%m%d'))
-        os.system('/sw/matlab-r2016b/bin/matlab -nodisplay -r "runalldecompPIP(' + ddate  + ')"')
+        os.system('/sw/matlab-r2015a/bin/matlab -nodisplay -r "runalldecompPIP(' + ddate  + ')"')
         print('PIP Image decompression complete. Starting netCDF concatenation... ' + dt.strftime(dt.now(),'%H:%M:%S %Y%m%d'))
         os.system('ncrcat -O ' + inOutDir + 'DIMG.PIP.' + ddate + '* ' +'DIMG.PIP.' + ddate + '.cdf')
 
