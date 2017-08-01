@@ -206,7 +206,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 	netcdf.putAtt(f, varid101, 'Description', 'Time since probe was activated')
 	
 	if probetype~=0 % Added by Joe Finlon - 06/22/17
-		varid102  = netcdf.defVar(f,'SliceCount','short',dimid0); %**TYPE?**
+		varid102  = netcdf.defVar(f,'SliceCount','short',dimid0);
 		netcdf.putAtt(f, varid102, 'Units', '--')
 		netcdf.putAtt(f, varid102, 'Description', 'Number of slices containing particle')
 		
@@ -214,7 +214,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		netcdf.putAtt(f, varid103, 'Units', '--')
 		netcdf.putAtt(f, varid103, 'Description', 'Flag denoting out-of-focus (DMT) or overloaded (SPEC) particles')
 		
-		varid104  = netcdf.defVar(f,'Particle_number_all','int',dimid0); %**TYPE?** Will we ever exceed ~2 billion particles?
+		varid104  = netcdf.defVar(f,'Particle_number_all','int',dimid0);
 		netcdf.putAtt(f, varid104, 'Units', '--')
 		netcdf.putAtt(f, varid104, 'Description', 'Index of particle in 2-D buffer')
 	end
