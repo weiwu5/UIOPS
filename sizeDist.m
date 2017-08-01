@@ -652,8 +652,13 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 	
 	fprintf('Beginning size distribution calculations and sorting %s\n\n',datestr(now));
 	
+    fprintf('There are a total of %d one sec data points.\n\n',one_sec_dur);
+
 	for i=1:length(tas) 
     
+        if mod(i,1000) == 0
+            fprintf('%d/%d | %s\n',i,one_sec_dur,datestr(now));
+        end
     %     if (int32(timehhmmss(i))>=int32(starttime(jjj)))
         if (eofFlag==0 && int32(timehhmmss(i))>=int32(starttime(jjj))) % Modified by Joe Finlon - 03/03/17
         
@@ -1219,10 +1224,6 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 			end
 			
 			%% Perform various status and error checks
-			if mod(i,1000) == 0
-				fprintf('%d/%d | %s\n',i,one_sec_dur,datestr(now));
-			end
-			
 			total_one_sec_locs(i) = length(find(image_time >= one_sec_times(i) & image_time < one_sec_times(i+1)));
 			time_interval2(i) = sum(int_arr(image_time >= one_sec_times(i) & image_time < one_sec_times(i+1)));
 			
