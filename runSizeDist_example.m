@@ -1,7 +1,7 @@
 function runSizeDistPECAN(ddate,runCIP,runPIP)
 	
 	% Added this line as MATLAB would not ls properly in -nodisplay mode without it...
-	cd /data/pecan/a/stechma2/pecan/mp-data/UIOPS
+	cd /data/pecan/a/stechma2/pecan/mp-data/IProcessingRelease
 	
 	%runCIP = 1;
 	%runPIP = 1;
