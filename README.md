@@ -3,6 +3,17 @@
 This is the software developed in University of Illinois at Urbana-Champaign to process the Optical Array Probe Datasets.
 The documentation below contains detailed instructions to run the software, and also information on optional parameters to run.
 
+## Current Developers & Contributers
+- **Joe Finlon** (finlon2@illinois.edu)
+- **Dan Stechman** (stechma2@illinois.edu)
+- **Adam Majewski** (amajewsk@uwyo.edu)
+
+## What's New (8/8/17)
+- **imgProc\_sm:** Improved variable types when saving data to netCDF to allow up to 40% smaller file sizes!
+- **imgProc\_sm:** Improvements to handling corrupted records with CIP/PIP
+- **sizeDist:** Cleaned up some code and made minor code formatting changes
+- Added a few example helper scripts to demonstrate how base UIOPS scripts are run (will be moved to separate 'Examples' folder in future)
+
 ## Dependencies
 **Supported OSes:** Linux, Mac (Windows support coming in the future)  
 **MATLAB Versions:** R2015a and higher (see https://www.mathworks.com/products/matlab.html for download and more info; student version from $99 USD; check w/ university for possible university-wide license)  
