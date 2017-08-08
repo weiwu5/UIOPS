@@ -79,6 +79,9 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 	
 	% Fix flight times if they span multiple days - Added by Joe Finlon -
     % 03/03/17
+	if ~isempty(find(diff(timehhmmss)<0))
+		fprintf('\nTAS times span multiple days - correcting... --> If this is unexpected, check associated TAS time variable for potential errors.\n')
+	end
     timehhmmss(find(diff(timehhmmss)<0)+1:end)=...
         timehhmmss(find(diff(timehhmmss)<0)+1:end) + 240000;
 	
@@ -100,18 +103,32 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 					num_diodes =64;
 					diodesize = 0.025; % units of mm
 					armdst=100.;
-% 					num_bins = 64;
-% 					kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
-					%                 num_bins=19;
-					%                 kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
-					%                     700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000; %Array in microns - converted to mm
-% 					kk=[25.0	50.0	75.0	100.0	125.0	150.0	175.0	200.0	225.0	250.0	275.0...
-% 						300.0	325.0	350.0	375.0	400.0	425.0	450.0	475.0	500.0	550.0	600.0...
-% 						650.0	700.0	750.0	800.0	850.0	900.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0]/1000; %Array in microns - converted to mm
+
+					
+					
+					% "Final" PECAN CIP bin configuration
+ 					%kk=[25.0	50.0	75.0	100.0	125.0	150.0	175.0	200.0	225.0	250.0	275.0...
+ 					%	300.0	325.0	350.0	375.0	400.0	425.0	450.0	475.0	500.0	550.0	600.0...
+ 					%	650.0	700.0	750.0	800.0	850.0	900.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0]/1000; %Array in microns - converted to mm
+					
+					% Bins with bounds matching the PIP bins in the overlap region - useful for direct comparison
 					kk=[50.0 100.0	150.0	200.0	250.0	300.0	350.0	400.0	450.0	500.0	600.0	650.0	700.0...
 						750.0	800.0	850.0	900.0	950.0	1000.0	1100.0	1250.0	1400.0	1600.0 1800.0 2000.0]/1000;
-					%kk=0.0125:0.025:1.6125; %Bob Black Bins (bin mids at 25, 50, 75, ..., 1600 um)
+					
+					% Bob Black PECAN Bins (bin mids at 25, 50, 75, ..., 1600 um)
+					% kk=0.0125:0.025:1.6125; %Bob Black Bins (bin mids at 25, 50, 75, ..., 1600 um)
+					
+					% Deprecated auto bin config
+ 					% num_bins = 64;
+ 					% kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
+					
+					% Original 19 bin configuration
+					% kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
+					%	700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000; %Array in microns - converted to mm
+					
+					% Determine number of bins (if not specified already in bin setup
 					num_bins = length(kk)-1;
+					
 					probetype=1;
 					tasMax=200; % Max airspeed that can be sampled without under-sampling (images would appear skewed)
 					
@@ -144,19 +161,31 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 					num_diodes =64;
 					diodesize = 0.1; %units of mm
 					armdst=260.;
-% 					num_bins = 64;
-% 					kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
-					%                 num_bins=19;
-					%                 kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
-					%                    700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]*4/1000;
-% 					kk=[100.0	250.0	400.0	550.0	700.0	850.0	1000.0	1200.0	1400.0	1600.0	1800.0	2000.0...
-% 						2200.0	2400.0	2600.0	2800.0	3000.0	3200.0	3400.0	3600.0	3800.0	4000.0	4200.0	4400.0...
-% 						4600.0	4800.0	5000.0	5200.0	5500.0	5800.0	6100.0	6400.0	6700.0	7000.0	7300.0]/1000;
-                    kk=[100.0	150.0	200.0	250.0	300.0	350.0	400.0	450.0	500.0	600.0	650.0	700.0...
-						750.0	800.0	850.0	900.0	950.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0...
- 						2300.0	2600.0	2900.0	3200.0	3600.0	4000.0	4500.0	5000.0	5500.0	6000.0	7300.0]/1000;
-					%kk=0.05:0.1:6.45; %Bob Black Bins (bin mids at 100, 200, 300, ..., 6400 um)
+
+					% "Final" PECAN PIP bin configuration
+					%kk=[100.0	250.0	400.0	550.0	700.0	850.0	1000.0	1200.0	1400.0	1600.0	1800.0	2000.0...
+					%	2200.0	2400.0	2600.0	2800.0	3000.0	3200.0	3400.0	3600.0	3800.0	4000.0	4200.0	4400.0...
+					%	4600.0	4800.0	5000.0	5200.0	5500.0	5800.0	6100.0	6400.0	6700.0	7000.0	7300.0]/1000;
+					
+					% Bins with bounds matching the CIP bins in the overlap region - useful for direct comparison
+					kk=[100.0	150.0	200.0	250.0	300.0	350.0	400.0	450.0	500.0	600.0	650.0	700.0...
+					 	750.0	800.0	850.0	900.0	950.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0...
+ 					 	2300.0	2600.0	2900.0	3200.0	3600.0	4000.0	4500.0	5000.0	5500.0	6000.0	7300.0]/1000;
+					
+					% Bob Black PECAN Bins (bin mids at 100, 200, 300, ..., 6400 um):
+ 					% kk=0.05:0.1:6.45;
+					
+					% Deprecated auto bin config
+ 					% num_bins = 64;
+ 					% kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
+
+					% Original 19 bin configuration
+                    % kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
+                    %     700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]*4/1000;
+					
+					% Determine number of bins (if not specified already in bin setup
 					num_bins = length(kk)-1;
+					
 					probetype=1;
 					tasMax=200;
 					
@@ -576,6 +605,9 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 	
 	% Fix particle times if they span multiple days - Added by Joe Finlon -
     % 03/03/17
+	if ~isempty(find(diff(image_time_hhmmssall)<0))
+		fprintf('\nParticle times span multiple days - correcting... --> If this is unexpected, check associated image time variable for potential errors.\n')
+	end
     image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end)=...
         image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end) + 240000;
 	
@@ -651,7 +683,7 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 	% maxRecNum=1; % Used in legacy interarrival time analysis
 	
 	fprintf('Beginning size distribution calculations and sorting %s\n\n',datestr(now));
-	
+
     fprintf('There are a total of %d one sec data points.\n\n',one_sec_dur);
 
 	for i=1:length(tas) 
@@ -860,9 +892,9 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 			
 			
 			% Save an intermediate output file every 8000 steps through the loop
-			if i==8000
-				save([outfile(1:end-3) 'tempComp.mat']);
-			end
+% 			if i==8000
+% 				save([outfile(1:end-3) 'tempComp.mat']);
+% 			end
 			
 			%% Calculate area of particle according to image reconstruction and airspeed (if tasMax exceeded)
 			

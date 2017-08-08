@@ -68,12 +68,12 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 %       2: HVPS/2DS, 128 doides, boundary 170
 	
 	
-	iRectEllipse = 0;  % Set defualt to no Rectangle fit and Ellipse fit
+	iRectEllipse = 1;  % Set defualt to no Rectangle fit and Ellipse fit
 	
 	% Option to save diode stats for every particle
 	% More than doubles filesize, and increase computation time
 	% Only enable if actually needed
-	calcAllDiodeStats = 0;
+	calcAllDiodeStats = 1;
 	
 	switch probename
 		case '2DC'
@@ -450,8 +450,18 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		if probetype == 1
 			tempMmbr = ismember(data,boundary);
 			goodBnd = [1,1,1,1,1,1,1,1];
-			crptBnd = [0,1,1,1,1,1,1,1];
-			numCrptBnds = length(find(ismember(tempMmbr,crptBnd,'rows')));
+			crptBnd1 = [0,1,1,1,1,1,1,1];
+			crptBnd2 = [1,0,1,1,1,1,1,1];
+			crptBnd3 = [1,1,0,1,1,1,1,1];
+			crptBnd4 = [1,1,1,0,1,1,1,1];
+			crptBnd5 = [1,1,1,1,0,1,1,1];
+			crptBnd6 = [1,1,1,1,1,0,1,1];
+			crptBnd7 = [1,1,1,1,1,1,0,1];
+			crptBnd8 = [1,1,1,1,1,1,1,0];
+			numCrptBnds = length(find(ismember(tempMmbr,crptBnd1,'rows'))) + length(find(ismember(tempMmbr,crptBnd2,'rows'))) + ...
+				length(find(ismember(tempMmbr,crptBnd3,'rows'))) + length(find(ismember(tempMmbr,crptBnd4,'rows'))) + ...
+				length(find(ismember(tempMmbr,crptBnd5,'rows'))) + length(find(ismember(tempMmbr,crptBnd6,'rows'))) + ...
+				length(find(ismember(tempMmbr,crptBnd7,'rows'))) + length(find(ismember(tempMmbr,crptBnd8,'rows')));
 			numGoodBnds = length(find(ismember(tempMmbr,goodBnd,'rows')));
 
 			if numCrptBnds > 0
