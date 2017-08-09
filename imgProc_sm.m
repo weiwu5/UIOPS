@@ -449,20 +449,9 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		% May be PECAN-specific, but should be tested with other DMT probe data - Added by Dan Stechman 8/1/17
 		if probetype == 1
 			tempMmbr = ismember(data,boundary);
-			goodBnd = [1,1,1,1,1,1,1,1];
-			crptBnd1 = [0,1,1,1,1,1,1,1];
-			crptBnd2 = [1,0,1,1,1,1,1,1];
-			crptBnd3 = [1,1,0,1,1,1,1,1];
-			crptBnd4 = [1,1,1,0,1,1,1,1];
-			crptBnd5 = [1,1,1,1,0,1,1,1];
-			crptBnd6 = [1,1,1,1,1,0,1,1];
-			crptBnd7 = [1,1,1,1,1,1,0,1];
-			crptBnd8 = [1,1,1,1,1,1,1,0];
-			numCrptBnds = length(find(ismember(tempMmbr,crptBnd1,'rows'))) + length(find(ismember(tempMmbr,crptBnd2,'rows'))) + ...
-				length(find(ismember(tempMmbr,crptBnd3,'rows'))) + length(find(ismember(tempMmbr,crptBnd4,'rows'))) + ...
-				length(find(ismember(tempMmbr,crptBnd5,'rows'))) + length(find(ismember(tempMmbr,crptBnd6,'rows'))) + ...
-				length(find(ismember(tempMmbr,crptBnd7,'rows'))) + length(find(ismember(tempMmbr,crptBnd8,'rows')));
-			numGoodBnds = length(find(ismember(tempMmbr,goodBnd,'rows')));
+			memberSum = sum(tempMmbr,2);
+			numCrptBnds = length(find(memberSum > 4 & memberSum < 8));
+			numGoodBnds = length(find(memberSum == 8));
 
 			if numCrptBnds > 0
 				fprintf('%d/%d boundaries in record %d are corrupt.\n',numCrptBnds,numGoodBnds+numCrptBnds,i);
