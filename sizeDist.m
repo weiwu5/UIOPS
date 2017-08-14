@@ -191,7 +191,7 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 					
 					applyIntArrThresh = 0;
 					defaultIntArrThresh = 1e-5;
-					reaccptShatrs = 1;
+					reaccptShatrs = 0;
 					reaccptD = 0.5; % Diammeter (in mm) to reaccept if initially flagged as shattered
 					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
 					
@@ -776,7 +776,7 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 				
 				int_arr2(int_arr2<0)=0;
 				
-				if reaccptShatrs
+				if reaccptShatrs && applyIntArrThresh
 					if start ~= start_all(end)
 						Time_in_seconds4 = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count+1);
 						int_arr3 = diff(Time_in_seconds4);
@@ -984,29 +984,29 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
         
                 % Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
             
-                shatterLocs = find(auto_reject == 'S');
-                shatterIA = int_arr(shatterLocs);
-                shatterTimes = Time_in_seconds(shatterLocs);
-                shatterDiam = particle_diameter_minR(shatterLocs);
-            
-                shatrReject_times = vertcat(shatrReject_times, shatterTimes);
-                shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
-                shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
-            
-                rccptLocs = find(auto_reject == 'R');
-                rccptIA = int_arr(rccptLocs);
-                rccptTimes = Time_in_seconds(rccptLocs);
-                rccptDiam = particle_diameter_minR(rccptLocs);
-            
-                rccptReject_times = vertcat(rccptReject_times, rccptTimes);
-                rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
-                rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
-            
-                        
-                loopedTimes = vertcat(loopedTimes, Time_in_seconds);
-                loopedIntArr = vertcat(loopedIntArr, int_arr);
-                loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
-                loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
+%                 shatterLocs = find(auto_reject == 'S');
+%                 shatterIA = int_arr(shatterLocs);
+%                 shatterTimes = Time_in_seconds(shatterLocs);
+%                 shatterDiam = particle_diameter_minR(shatterLocs);
+%             
+%                 shatrReject_times = vertcat(shatrReject_times, shatterTimes);
+%                 shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
+%                 shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
+%             
+%                 rccptLocs = find(auto_reject == 'R');
+%                 rccptIA = int_arr(rccptLocs);
+%                 rccptTimes = Time_in_seconds(rccptLocs);
+%                 rccptDiam = particle_diameter_minR(rccptLocs);
+%             
+%                 rccptReject_times = vertcat(rccptReject_times, rccptTimes);
+%                 rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
+%                 rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
+%             
+%                         
+%                 loopedTimes = vertcat(loopedTimes, Time_in_seconds);
+%                 loopedIntArr = vertcat(loopedIntArr, int_arr);
+%                 loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
+%                 loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
             
             end
 			
@@ -1115,29 +1115,29 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 				
 				
 				% Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
-				shatterLocs = find(auto_reject == 'S');
-				shatterIA = int_arr(shatterLocs);
-				shatterTimes = Time_in_seconds(shatterLocs);
-				shatterDiam = particle_diameter_minR(shatterLocs);
-				
-				shatrReject_times = vertcat(shatrReject_times, shatterTimes);
-				shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
-				shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
-				
-				rccptLocs = find(auto_reject == 'R');
-				rccptIA = int_arr(rccptLocs);
-				rccptTimes = Time_in_seconds(rccptLocs);
-				rccptDiam = particle_diameter_minR(rccptLocs);
-				
-				rccptReject_times = vertcat(rccptReject_times, rccptTimes);
-				rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
-				rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
-				
-				
-				loopedTimes = vertcat(loopedTimes, Time_in_seconds);
-				loopedIntArr = vertcat(loopedIntArr, int_arr);
-				loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
-				loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
+% 				shatterLocs = find(auto_reject == 'S');
+% 				shatterIA = int_arr(shatterLocs);
+% 				shatterTimes = Time_in_seconds(shatterLocs);
+% 				shatterDiam = particle_diameter_minR(shatterLocs);
+% 				
+% 				shatrReject_times = vertcat(shatrReject_times, shatterTimes);
+% 				shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
+% 				shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
+% 				
+% 				rccptLocs = find(auto_reject == 'R');
+% 				rccptIA = int_arr(rccptLocs);
+% 				rccptTimes = Time_in_seconds(rccptLocs);
+% 				rccptDiam = particle_diameter_minR(rccptLocs);
+% 				
+% 				rccptReject_times = vertcat(rccptReject_times, rccptTimes);
+% 				rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
+% 				rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
+% 				
+% 				
+% 				loopedTimes = vertcat(loopedTimes, Time_in_seconds);
+% 				loopedIntArr = vertcat(loopedIntArr, int_arr);
+% 				loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
+% 				loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
 			end
 			
 			
