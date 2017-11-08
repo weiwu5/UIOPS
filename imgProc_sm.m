@@ -411,7 +411,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 	
 	% Initialize corrupt record and particle counters - Added by Dan Stechman 8/1/17
 	% Currently, issue is specific to PECAN, but may be present with other DMT data
-	if probetype == 1
+	if strcmp(projectname, 'PECAN')
 		crptRecCount = 0;
 		crptPartCount = 0;
 	end
@@ -447,7 +447,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		% Check the current data record for corrupt boundaries and keep track
 		% of which and how many records and particles are being dicarded
 		% May be PECAN-specific, but should be tested with other DMT probe data - Added by Dan Stechman 8/1/17
-		if probetype == 1
+		if strcmp(projectname, 'PECAN')
 			tempMmbr = ismember(data,boundary);
 			memberSum = sum(tempMmbr,2);
 			numCrptBnds = length(find(memberSum > 4 & memberSum < 8));
@@ -458,6 +458,8 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 				crptRecCount = crptRecCount + 1;
 				crptPartCount = crptPartCount + (numGoodBnds + numCrptBnds);
 			end
+		else
+			numCrptBnds = 0;
 		end
 		
 		%c=[dec2bin(data(:,1),8),dec2bin(data(:,2),8),dec2bin(data(:,3),8),dec2bin(data(:,4),8)];
@@ -846,7 +848,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		
 	end
 	
-	if probetype == 1
+	if strcmp(projectname, 'PECAN')
 		slicesInChunk = length(((n-1)*nEvery+1):min(n*nEvery,handles.img_count));
 		fprintf('Chunk %d complete -- %d/%d records were likely corrupt (%.4f%%) --> %d potential particles ignored.\n',n,crptRecCount,...
 			slicesInChunk,(crptRecCount/slicesInChunk),crptPartCount);
