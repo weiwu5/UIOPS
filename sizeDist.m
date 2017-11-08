@@ -57,87 +57,6 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmethod, Pres, Temp, projectname, ddate, varargin)
-<<<<<<< HEAD
-	
-	iCreateBad = 0; % Calculate PSDs and other quantities for rejected particles alone (good particles still calculated separately)
-	iCreateAspectRatio = 1;
-	iSaveIntArrSV = 1; % Default not to save inter-arrival and sample volume information
-    
-    %% Interarrival threshold file specification
-    % Can be implemented if a time-dependent threshold is required - add 'varargin' to arguments in function header above
-
-    if length(varargin) == 1
-        iaThreshFile = varargin{1};
-    elseif length(varargin) == 2
-        iaThreshFile = varargin{1};
-        prmsF = varargin{2};
-    elseif length(varargin) > 2
-        display('Too many optional arguments supplied - ignoring...')
-        iaThreshFile = varargin{1};
-        prmsF = varargin{2};
-    elseif length(varargin) == 0
-        iaThreshFile = 'NONE';
-        prmsF = 'NONE';
-    end
-	
-	% Fix flight times if they span multiple days - Added by Joe Finlon -
-    % 03/03/17
-	if ~isempty(find(diff(timehhmmss)<0))
-		fprintf('\nTAS times span multiple days - correcting... --> If this is unexpected, check associated TAS time variable for potential errors.\n')
-	end
-    timehhmmss(find(diff(timehhmmss)<0)+1:end)=...
-        timehhmmss(find(diff(timehhmmss)<0)+1:end) + 240000;
-	
-	% tas_char = num2str(timehhmmss); %Unused
-	tas_time = floor(timehhmmss/10000)*3600+floor(mod(timehhmmss,10000)/100)*60+floor(mod(timehhmmss,100));
-	% averaging_time = 1;
-	
-	
-	%% Project-, probe-, and date-specific information
-	switch projectname
-		case 'PECAN'
-		    if ~strcmp(prmsF,'NONE')
-                prmsF = netcdf.open(prmsF,'nowrite');
-            else
-                error('PECAN size distribution processing requires an input parameters file. Please specify in second optional argument position');
-            end
-			switch probename
-				case 'CIP'
-					num_diodes =64;
-					diodesize = 0.025; % units of mm
-					armdst=100.;
-
-					
-					
-					% "Final" PECAN CIP bin configuration
- 					%kk=[25.0	50.0	75.0	100.0	125.0	150.0	175.0	200.0	225.0	250.0	275.0...
- 					%	300.0	325.0	350.0	375.0	400.0	425.0	450.0	475.0	500.0	550.0	600.0...
- 					%	650.0	700.0	750.0	800.0	850.0	900.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0]/1000; %Array in microns - converted to mm
-					
-					% Bins with bounds matching the PIP bins in the overlap region - useful for direct comparison
-					kk=[50.0 100.0	150.0	200.0	250.0	300.0	350.0	400.0	450.0	500.0	600.0	650.0	700.0...
-						750.0	800.0	850.0	900.0	950.0	1000.0	1100.0	1250.0	1400.0	1600.0 1800.0 2000.0]/1000;
-					
-					% Bob Black PECAN Bins (bin mids at 25, 50, 75, ..., 1600 um)
-					% kk=0.0125:0.025:1.6125; %Bob Black Bins (bin mids at 25, 50, 75, ..., 1600 um)
-					
-					% Deprecated auto bin config
- 					% num_bins = 64;
- 					% kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
-					
-					% Original 19 bin configuration
-					% kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
-					%	700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000; %Array in microns - converted to mm
-					
-					% Determine number of bins (if not specified already in bin setup
-					num_bins = length(kk)-1;
-					
-					probetype=1;
-					tasMax=200; % Max airspeed that can be sampled without under-sampling (images would appear skewed)
-					
-					
-					applyIntArrThresh = 1;
-=======
 iCreateBad = 0; % Default not to output bad particles PSDs and other info
 iCreateAspectRatio = 0; % Default not to process aspect ratio info
 iSaveIntArrSV = 1; % Default not to save inter-arrival and sample volume information
@@ -185,7 +104,6 @@ switch projectname
                 tasMax=200; % Max airspeed that can be sampled without under-sampling (images would appear skewed)
                 
 				applyIntArrThresh = 1;
->>>>>>> master
 					defaultIntArrThresh = 1e-5;
 				reaccptShatrs = 1;
 					reaccptD = 0.5; % Diammeter (in mm) to reaccept if initially flagged as shattered
@@ -204,44 +122,6 @@ switch projectname
 							intar_threshold(ix) = intar_threshold_spirals(iz);
 						end
 					end
-<<<<<<< HEAD
-					
-				case 'PIP'
-					num_diodes =64;
-					diodesize = 0.1; %units of mm
-					armdst=260.;
-
-					% "Final" PECAN PIP bin configuration
-					%kk=[100.0	250.0	400.0	550.0	700.0	850.0	1000.0	1200.0	1400.0	1600.0	1800.0	2000.0...
-					%	2200.0	2400.0	2600.0	2800.0	3000.0	3200.0	3400.0	3600.0	3800.0	4000.0	4200.0	4400.0...
-					%	4600.0	4800.0	5000.0	5200.0	5500.0	5800.0	6100.0	6400.0	6700.0	7000.0	7300.0]/1000;
-					
-					% Bins with bounds matching the CIP bins in the overlap region - useful for direct comparison
-					kk=[100.0	150.0	200.0	250.0	300.0	350.0	400.0	450.0	500.0	600.0	650.0	700.0...
-					 	750.0	800.0	850.0	900.0	950.0	1000.0	1100.0	1250.0	1400.0	1600.0	1800.0	2000.0...
- 					 	2300.0	2600.0	2900.0	3200.0	3600.0	4000.0	4500.0	5000.0	5500.0	6000.0	7300.0]/1000;
-					
-					% Bob Black PECAN Bins (bin mids at 100, 200, 300, ..., 6400 um):
- 					% kk=0.05:0.1:6.45;
-					
-					% Deprecated auto bin config
- 					% num_bins = 64;
- 					% kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
-
-					% Original 19 bin configuration
-                    % kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
-                    %     700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]*4/1000;
-					
-					% Determine number of bins (if not specified already in bin setup
-					num_bins = length(kk)-1;
-					
-					probetype=1;
-					tasMax=200;
-					
-					applyIntArrThresh = 0;
-					defaultIntArrThresh = 1e-5;
-					reaccptShatrs = 0;
-=======
 				end
                 
             case 'PIP'
@@ -260,7 +140,6 @@ switch projectname
 				applyIntArrThresh = 1;
 					defaultIntArrThresh = 1e-5;
 				reaccptShatrs = 1;
->>>>>>> master
 					reaccptD = 0.5; % Diammeter (in mm) to reaccept if initially flagged as shattered
 					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
                 
@@ -531,256 +410,10 @@ switch projectname
 				reaccptShatrs = 0;
 					reaccptD = 0.5; 
 					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
-<<<<<<< HEAD
-					
-					intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
-			end
-	end
-	
-	%% Define input and output files and initialize time variable
-	f = netcdf.open(infile,'nowrite');
-	if iCreateBad
-		mainf = netcdf.create([outfile(1:end-3) 'wRejSD.cdf'], 'clobber');
-	else
-		mainf = netcdf.create(outfile, 'clobber');
-	end
-	
-	
-	if applyIntArrThresh && ~reaccptShatrs
-		fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\n',projectname,ddate,probename);
-	elseif applyIntArrThresh && reaccptShatrs
-		fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\t- Shatter reacceptance\n\n',...
-			projectname,ddate,probename);
-	else
-		fprintf('Beginning sizeDist_Paris.m for %s %s - %s probe\n\n',projectname,ddate,probename);
-	end
-	
-	res=diodesize*1000;
-	binwidth=diff(kk);
-	% SAmethod = 2;
-	% for i=1:num_bins+1
-	%     kk(i)=  (diodesize*i)^2*3.1415926/4;
-	% end
-	
-	
-	%% Define Variables
-	
-	% Good particles (not rejected)
-	particle_dist_minR  = zeros(length(tas),num_bins)*NaN;
-	particle_dist_AreaR = zeros(length(tas),num_bins)*NaN;
-	particle_aspectRatio = zeros(length(tas),num_bins)*NaN;
-	particle_aspectRatio1 = zeros(length(tas),num_bins)*NaN;
-	particle_areaRatio1 = zeros(length(tas),num_bins)*NaN;
-	particle_area = zeros(length(tas),num_bins)*NaN;
-	cip2_meanp = zeros(length(tas),num_bins)*NaN;
-	cip2_iwc = zeros(length(tas),num_bins)*NaN;
-	cip2_lwc = zeros(length(tas),num_bins)*NaN;
-	cip2_iwcbl = zeros(length(tas),num_bins)*NaN;
-	cip2_vt_ice = zeros(length(tas),num_bins)*NaN;
-	cip2_vt_lw = zeros(length(tas),num_bins)*NaN;
-	cip2_pr_ice = zeros(length(tas),num_bins)*NaN;
-	cip2_pr_lw = zeros(length(tas),num_bins)*NaN;
-	cip2_partarea = zeros(length(tas),num_bins)*NaN;
-	
-	cip2_re = zeros(1,length(tas))*NaN;
-	good_partpercent=zeros(length(tas),1);
-	goodintpercent=zeros(length(tas),1);
-	numGoodparticles=zeros(length(tas),1);
-	one_sec_ar=zeros(length(tas),1);
-	
-	
-	cip2_habitsd = zeros(length(tas),num_bins,10)*NaN;
-	cip2_habitmsd = zeros(length(tas),num_bins,10)*NaN;
-	area_dist2 = zeros(length(tas),num_bins,10)*NaN;
-	
-	rejectpercentbycriterion=zeros(length(tas),14);
-	
-	
-	% Bad particles (rejected)
-	if iCreateBad
-		bad_particle_dist_minR  = zeros(length(tas),num_bins)*NaN;
-		bad_particle_dist_AreaR = zeros(length(tas),num_bins)*NaN;
-		bad_particle_aspectRatio = zeros(length(tas),num_bins)*NaN;
-		bad_particle_aspectRatio1 = zeros(length(tas),num_bins)*NaN;
-		bad_particle_areaRatio1 = zeros(length(tas),num_bins)*NaN;
-		bad_particle_area = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_meanp = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_iwc = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_iwcbl = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_vt = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_pr = zeros(length(tas),num_bins)*NaN;
-		bad_cip2_partarea = zeros(length(tas),num_bins)*NaN;
-		
-		bad_cip2_re = zeros(1,length(tas))*NaN;
-		badintpercent=zeros(length(tas),1);
-		numBadparticles=zeros(length(tas),1);
-		bad_one_sec_ar=zeros(length(tas),1);
-		
-		bad_cip2_habitsd = zeros(length(tas),num_bins,10)*NaN;
-		bad_cip2_habitmsd = zeros(length(tas),num_bins,10)*NaN;
-		bad_area_dist2 = zeros(length(tas),num_bins,10)*NaN;
-	end
-	
-	% particle_dist2 = zeros(length(tas),num_bins)*NaN; %Unused
-	% time_interval1 = zeros(length(tas), 1); %Unused
-	% cip2_ar = zeros(1,length(tas))*NaN; %Unused
-	% throwoutpercent=zeros(length(tas),1); %Used in legacy interarrival time analysis
-	% totalint=zeros(length(tas),1); %Used in legacy interarrival time analysis
-	% intsum=zeros(length(tas),1); %Used in legacy interarrival time analysis
-	
-	area_bins = 0:.1:1.01;
-	one_sec_times = tas_time;
-	one_sec_dur = length(one_sec_times);
-	total_one_sec_locs(1:one_sec_dur) = 0;
-	start_time = floor(tas_time(1));
-	end_time = ceil(tas_time(end));
-	one_sec_tas(1:one_sec_dur) = 0;
-	one_sec_tas_entire(1:one_sec_dur) = 0;
-	deadtime(1:one_sec_dur) = 0;
-	
-	warning off all
-	
-	one_sec_times=[one_sec_times;one_sec_times(one_sec_dur)+1];
-	time_interval2 = zeros(one_sec_dur,1);
-	
-	TotalPC1 = zeros(one_sec_dur,1)';
-	TotalPC2 = zeros(one_sec_dur,1)';
-	
-	% Used for debugging of interarrival time analysis
-	shatrReject_times = [];
-	shatrReject_intArr = [];
-	shatrReject_diam = [];
-	
-	rccptReject_times = [];
-	rccptReject_intArr = [];
-	rccptReject_diam = [];
-	
-	loopedTimes = [];
-	loopedIntArr = [];
-	loopedDiam = [];
-	loopedAutoRej = [];
-	
-	%% Load particles for each second, and then process them
-	% Only for large files cannot be processed at once
-	[~, NumofPart] = netcdf.inqDim(f,0); % Check the number of particles
-	
-	if 1==probetype
-		image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'particle_time'));
-	elseif 2==probetype
-		image_time_hhmmssallbuffer = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
-		%    image_time_hhmmssallbuffer(image_time_hhmmssallbuffer<10000 & image_time_hhmmssallbuffer>=0)=image_time_hhmmssallbuffer(image_time_hhmmssallbuffer<10000 & image_time_hhmmssallbuffer>=0)+240000;
-		alltimeinseconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'));
-		time_msec_all = netcdf.getVar(f,netcdf.inqVarID(f,'msec'),0,1);
-		
-		indexRollback=find(diff(alltimeinseconds)<-250)+1;
-		
-		for i=1:length(indexRollback)
-			if mod(i,1000)==0
-                disp([num2str(i),' / ',num2str(length(indexRollback)),datestr(now)]) % Joe Finlon
-            end
-			alltimeinseconds(indexRollback(i):end)=alltimeinseconds(indexRollback(i):end)+(2^32-1)*(res/10^6/tasMax);
-		end
-		
-		%    alltimeinsecondsstart=alltimeinseconds(indexBuffert);
-		%    increaseAllinseconds= alltimeinseconds-alltimeinseconds(1);
-		%    increaseAllinseconds(increaseAllinseconds<0)=increaseAllinseconds(increaseAllinseconds<0)+(2^32-1)*(res/10^6/170);
-		%    image_time_hhmmssall = insec2hhmmss(floor(47069+time_msec_all(1)/1000.0+increaseAllinseconds*170/110));
-		image_time_hhmmssall = image_time_hhmmssallbuffer;
-	else
-		image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
-	end
-	
-	% image_time_hhmmssall = netcdf.getVar(f,netcdf.inqVarID(f,'Time'));
-	% image_time_hhmmssall(image_time_hhmmssall<50000 & image_time_hhmmssall>=0)=image_time_hhmmssall(image_time_hhmmssall<50000 & image_time_hhmmssall>=0)+120000;
-	
-	% Fix particle times if they span multiple days - Added by Joe Finlon -
-    % 03/03/17
-	if ~isempty(find(diff(image_time_hhmmssall)<0))
-		fprintf('\nParticle times span multiple days - correcting... --> If this is unexpected, check associated image time variable for potential errors.\n')
-	end
-    image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end)=...
-        image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end) + 240000;
-	
-	% Find all indices (true/1) with a unique time in hhmmss - in other words, we're getting the particle index where each new
-	% one-second period starts
-	startindex=[true;(diff(hhmmss2insec(image_time_hhmmssall))>0)]; % & diff(hhmmss2insec(image_time_hhmmssall))<5)]; % Simplified (tested/changed by DS)
-	
-	% startindex=int8(image_time_hhmmssall*0);
-	% for i=1:length(timehhmmss)
-	%    indexofFirstTime =  find(image_time_hhmmssall==timehhmmss(i),1);
-	%    if ( ~isempty(indexofFirstTime) )
-	%        startindex(indexofFirstTime)=1;
-	%    end
-	%    disp([i,length(timehhmmss)]);
-	% end
-	
-	
-	% Get the start time for each new one-second period
-	starttime=image_time_hhmmssall(startindex); % Simplified (tested/changed by DS)
-	
-	
-	% Find all instances where startindex is true (where image_time_hhmmssall changes by more than 0) and shift indices back by one to
-	% facilitate proper particle counts for each one-second period
-	start_all=find(startindex)-1; % Simplified (tested/changed by DS)
-	
-	% Sort the particle one-second time array in the event it is out of order and redefine the start_all variable as needed
-	[starttime,newindexofsort]=sort(starttime);
-	start_all=start_all(newindexofsort);
-	
-	
-	%% Remove times when there is no tas data available
-	% nNoTAS=0;
-	% for i=1:length(starttime)
-	%     if isempty(timehhmmss(timehhmmss == starttime(i)))
-	%         starttime(i)=500000;
-	%         nNoTAS=nNoTAS+1;
-	%     end
-	%
-	%     if i>5 & i<length(starttime)-5 & hhmmss2insec(starttime(i))>mean(hhmmss2insec(starttime(i-5:i+5)))+5
-	%         starttime(i)=500000;
-	%     end
-	% end
-	% nNoTAS
-	% start_all = start_all(starttime<500000);
-	% count_all = count_all(starttime<500000);
-	% starttime = starttime(starttime<500000);
-	
-	%% Remove any duplicate times and determine how many particles are present in each one-second period
-	fprintf('Number of duplicate times = %d\n\n',(length(starttime)-length(unique(starttime))));
-	
-	[starttime, ia, ~] = unique(starttime,'first');
-	start_all = start_all(ia);
-	count_all= [diff(start_all); NumofPart-start_all(end)];
-	count_all(count_all<0)=1;
-	
-	%% Remove times when there are less than 10 particles in one second
-	% starttime = starttime(count_all>10);
-	% start_all = start_all(count_all>10);
-	% count_all = count_all(count_all>10);
-	
-	%if (int32(timehhmmss(1))>int32(starttime(2)))
-	%    error('Watch Out for less TAS time from begining!')
-	%end
-	
-	%% Main loop over the length of the true air speed variable (1-sec resolution)
-	jjj=1;
-	eofFlag=0; % end of the particle data flag - Added by Joe Finlon - 03/03/17
-	
-	sumIntArrGT1 = 0;
-	intArrGT1 = [];
-	
-	% nThrow11=0; % Used in legacy interarrival time analysis
-	% maxRecNum=1; % Used in legacy interarrival time analysis
-	
-	fprintf('Beginning size distribution calculations and sorting %s\n\n',datestr(now));
-
-    fprintf('There are a total of %d one sec data points.\n\n',one_sec_dur);
-=======
                 
 				intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
         end
 end
->>>>>>> master
 
 if applyIntArrThresh && ~reaccptShatrs
 	fprintf('Beginning sizeDist.m for %s %s - %s probe\n\t**Optional parameters active:\n\t- Shatter removal\n\n',projectname,ddate,probename);
@@ -1082,24 +715,11 @@ for i=1:length(tas)
 				Time_in_seconds2 = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start-1,count+1);
 				int_arr = diff(Time_in_seconds2);
 				
-<<<<<<< HEAD
-				if reaccptShatrs && applyIntArrThresh
-					if start ~= start_all(end)
-						Time_in_seconds4 = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count+1);
-						int_arr3 = diff(Time_in_seconds4);
-					else
-						Time_in_seconds4 = Time_in_seconds;
-						int_arr3 = diff(Time_in_seconds4);
-						int_arr3 = [int_arr3;int_arr3(end)];
-					end
-					int_arr3(int_arr3<0)=0;
-=======
 				if start ~= start_all(end)
 					Time_in_seconds3 = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),(start+count)-1,2);						
 					int_arr2 = diff(Time_in_seconds3); %Single value describing interarrival time of first particle of next 1-sec period
 				else
 					int_arr2 = [];
->>>>>>> master
 				end
 			end
 			
@@ -1205,65 +825,6 @@ for i=1:length(tas)
             image_time_hhmmss = insec2hhmmss(image_time_hhmmss);
             image_time_hhmmssnew = image_time_hhmmss;
         end
-<<<<<<< HEAD
-			%}
-			if probetype==0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
-                time_interval72(i) = 0; % 2DC/2DP does not have overload flag
-            else
-                time_interval72(i) = sum(int_arr(DMT_DOF_SPEC_OVERLOAD~=0));
-            end
-			
-			% Simplified by DS - Removed image_time_hhmmssnew as it was defined by and never changed from image_time_hhmmss
-			image_time_hhmmss = image_time_hhmmssall(start+1:start+count);
-			
-			% If image time crosses midnight, add 240000 to all times past midnight
-			%         image_time_hhmmss(image_time_hhmmss<10000)=image_time_hhmmss(image_time_hhmmss<10000)+240000;
-			
-			
-			
-			% Save an intermediate output file every 8000 steps through the loop
-% 			if i==8000
-% 				save([outfile(1:end-3) 'tempComp.mat']);
-% 			end
-			
-			%% Calculate area of particle according to image reconstruction and airspeed (if tasMax exceeded)
-			
-			% Correct for airspeeds exceeding the max airspeed for the probe
-			if(tas(i) > tasMax) % Set to threshold as necessary - stretch area of particle
-				fprintf(2,'TAS at tas index %d exceeds tasMax (%.1f) of probe. Reconstructing area...\n\n',...
-					i,tasMax);
-				area = area*tas(i)/tasMax;
-			end
-			
-			particle_mass_ice = area*0;
-			particle_mass_lw = area*0;
-			calcd_area = area*0;
-			for iiii=1:length(area)
-				particle_mass_ice(iiii)=single_mass(particle_diameter_minR(iiii)/10, habit1(iiii));  % in unit of gram
-				particle_mass_lw(iiii) = (pi/6) * (particle_diameter_minR(iiii)/10)^3;
-				calcd_area(iiii)=single_area(particle_diameter_minR(iiii)/10, habit1(iiii));  % in unit of mm^2
-			end
-			particle_massbl=0.115/1000*area.^(1.218); % in unit of gram
-			
-			
-			%% Added by Robert Jackson -- old version did not have area ratio code
-			area_ratio = area./(pi/4.*particle_diameter_minR.^2);
-			auto_reject(area_ratio < .2) = 'z';
-			
-			%% Added by Will to calculate terminal velocity and precipitation rate
-			particle_vt_ice = area*0;
-			particle_vt_lw = area*0;
-			for iiii=1:length(area)
-				particle_vt_ice(iiii)=single_vt(particle_diameter_minR(iiii)/1000, area_ratio(iiii), particle_mass_ice(iiii)/1000,Pres(i),Temp(i));  % in unit of gram
-				particle_vt_lw(iiii)=single_vt(particle_diameter_minR(iiii)/1000, area_ratio(iiii), particle_mass_lw(iiii)/1000,Pres(i),Temp(i)); % Not sure if this function applies to liquid water or not...
-			end
-			particle_pr_ice=particle_mass_ice.*particle_vt_ice;
-			particle_pr_lw=particle_mass_lw.*particle_vt_lw;
-			
-			%% Time-dependent threshold for interarrival time - Added by Dan Stechman - 5/10/16 & Modified by Joe Finlon - 03/03/17
-            % Enable this section to use a time-dependent threshold for interarrival time. Also need to enable section at top of
-            % script allowing for threshold file to be pulled in
-=======
         %}
 %         if probetype==0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
         if probetype==0 % handle 2DC/2DP overloading ~ Joe Finlon & Adam Majewski 11/06/17
@@ -1285,7 +846,6 @@ for i=1:length(tas)
         if i==8000
             save([outfile(1:end-3) 'tempComp.mat']);
         end
->>>>>>> master
         
         %% Calculate area of particle according to image reconstruction and airspeed (if tasMax exceeded)
 
@@ -1369,33 +929,6 @@ for i=1:length(tas)
 			end
 			
         
-<<<<<<< HEAD
-                % Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
-            
-%                 shatterLocs = find(auto_reject == 'S');
-%                 shatterIA = int_arr(shatterLocs);
-%                 shatterTimes = Time_in_seconds(shatterLocs);
-%                 shatterDiam = particle_diameter_minR(shatterLocs);
-%             
-%                 shatrReject_times = vertcat(shatrReject_times, shatterTimes);
-%                 shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
-%                 shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
-%             
-%                 rccptLocs = find(auto_reject == 'R');
-%                 rccptIA = int_arr(rccptLocs);
-%                 rccptTimes = Time_in_seconds(rccptLocs);
-%                 rccptDiam = particle_diameter_minR(rccptLocs);
-%             
-%                 rccptReject_times = vertcat(rccptReject_times, rccptTimes);
-%                 rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
-%                 rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
-%             
-%                         
-%                 loopedTimes = vertcat(loopedTimes, Time_in_seconds);
-%                 loopedIntArr = vertcat(loopedIntArr, int_arr);
-%                 loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
-%                 loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
-=======
 			% Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
 			
             shatterLocs = find(auto_reject == 'S');
@@ -1421,7 +954,6 @@ for i=1:length(tas)
 			loopedIntArr = vertcat(loopedIntArr, int_arr);
             loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
 			loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
->>>>>>> master
             
         end
         
@@ -1525,49 +1057,8 @@ for i=1:length(tas)
 						eIndex = iEvent;
 					end
 				end
-<<<<<<< HEAD
-				
-				
-				% Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
-% 				shatterLocs = find(auto_reject == 'S');
-% 				shatterIA = int_arr(shatterLocs);
-% 				shatterTimes = Time_in_seconds(shatterLocs);
-% 				shatterDiam = particle_diameter_minR(shatterLocs);
-% 				
-% 				shatrReject_times = vertcat(shatrReject_times, shatterTimes);
-% 				shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
-% 				shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
-% 				
-% 				rccptLocs = find(auto_reject == 'R');
-% 				rccptIA = int_arr(rccptLocs);
-% 				rccptTimes = Time_in_seconds(rccptLocs);
-% 				rccptDiam = particle_diameter_minR(rccptLocs);
-% 				
-% 				rccptReject_times = vertcat(rccptReject_times, rccptTimes);
-% 				rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
-% 				rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
-% 				
-% 				
-% 				loopedTimes = vertcat(loopedTimes, Time_in_seconds);
-% 				loopedIntArr = vertcat(loopedIntArr, int_arr);
-% 				loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
-% 				loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
-			end
-			
-			
-			%% Apply rejection criteria and identify good and bad particles
-			% Modify the next line to include/exclude any particles you see fit.
-			
-			%         good_particles = (auto_reject == '0' | auto_reject == 'H' | auto_reject == 'h' | auto_reject == 'u' | auto_reject == 'R');
-			good_particles = ( (auto_reject == '0' | auto_reject == 'H' | auto_reject == 'h' | auto_reject == 'u' | auto_reject == 'R') & particle_diameter_minR > 0.15);
-			if iCreateBad
-				% 			bad_particles = ~(auto_reject == '0' | auto_reject == 'H' | auto_reject == 'h' | auto_reject == 'u' | auto_reject == 'R');
-				bad_particles = ~( (auto_reject == '0' | auto_reject == 'H' | auto_reject == 'h' | auto_reject == 'u' | auto_reject == 'R') & particle_diameter_minR > 0.15);
-				%	 		bad_particles = (auto_reject == 'S');
-=======
 
 				auto_reject(eIndex) = 'R';
->>>>>>> master
 			end
 			
         
