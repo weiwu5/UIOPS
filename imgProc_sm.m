@@ -1,4 +1,4 @@
-function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, varargin)
+function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  This function is the image processing part of OAP processing using
 %  distributed memory parallisation. The function use one simple interface
@@ -66,6 +66,11 @@ function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, vara
 %          values when > 1000.
 %          Buffer overload times now saved for PMS platform data for
 %          subsequent SV correction in sizeDist.
+%    * Updated by Joe Finlon, 11/09/17
+%          Fixed PECAN-specific corrupt record identification that
+%          prevented code to run for other projects
+%          Removed unnecessary 'else' statement immediately following the
+%          data integrity statement block
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -418,7 +423,7 @@ function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, vara
 	
 	% Initialize corrupt record and particle counters - Added by Dan Stechman 8/1/17
 	% Currently, issue is specific to PECAN, but may be present with other DMT data
-	if probetype == 1
+	if strcmp(projectname, 'PECAN') % Changed condition to be project-specific rather than probe-specific ~ Joe Finlon 11/09/17
 		crptRecCount = 0;
 		crptPartCount = 0;
 	end
@@ -457,22 +462,24 @@ function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, vara
 		% Check the current data record for corrupt boundaries and keep track
 		% of which and how many records and particles are being dicarded
 		% May be PECAN-specific, but should be tested with other DMT probe data - Added by Dan Stechman 8/1/17
-		if probetype == 1
+		if strcmp(projectname, 'PECAN') % Changed condition to be project-specific rather than probe-specific ~ Joe Finlon 11/09/17
 			tempMmbr = ismember(data,boundary);
 			goodBnd = [1,1,1,1,1,1,1,1];
 			crptBnd = [0,1,1,1,1,1,1,1];
 			numCrptBnds = length(find(ismember(tempMmbr,crptBnd,'rows')));
 			numGoodBnds = length(find(ismember(tempMmbr,goodBnd,'rows')));
 
-			if numCrptBnds > 0
+            if numCrptBnds > 0
 				fprintf('%d/%d boundaries in record %d are corrupt.\n',numCrptBnds,numGoodBnds+numCrptBnds,i);
 				crptRecCount = crptRecCount + 1;
 				crptPartCount = crptPartCount + (numGoodBnds + numCrptBnds);
-			end
+            end
+        else % Added conditional block for non-PECAN cases
+            numCrptBnds = 0;
 		end
 		
 		%c=[dec2bin(data(:,1),8),dec2bin(data(:,2),8),dec2bin(data(:,3),8),dec2bin(data(:,4),8)];
-		while data(j,1) ~= -1 && j < size(data,1) && numCrptBnds < 1
+        while data(j,1) ~= -1 && j < size(data,1) && numCrptBnds < 1
 			% Calculate every particles
             if (isequal(data(j,:), boundary) && ( (isequal(data(j+1,1), boundarytime) || probetype==1) ) )
                 if start == 0
@@ -500,119 +507,110 @@ function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, vara
                     end
                     
                 end
-                else % Process particle slices since no corrupted data found ~ Joe Finlon 11/06/17
-                    header_loc = j+1;
-                    w=w+1;
-                    %% Create binary image according to probe type
-
-                    if probetype==0
-                        ind_matrix(1:j-start-1,:) = data(start+1:j-1,:);  % 2DC has 3 slices between particles (sync word timing word and end of particle words)
-                        c=[dec2bin(ind_matrix(:,1),8),dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8)];
-                    elseif probetype==1
-                        ind_matrix(1:j-start,:) = data(start:j-1,:);
-                        c=[dec2bin(ind_matrix(:,1),8), dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8), ...
-                            dec2bin(ind_matrix(:,5),8), dec2bin(ind_matrix(:,6),8),dec2bin(ind_matrix(:,7),8),dec2bin(ind_matrix(:,8),8)];
-                    elseif probetype==2
-                        ind_matrix(1:j-start,:) = 65535 - data(start:j-1,:); % I used 1 to indicate the illuminated doides for HVPS
-                        c=[dec2bin(ind_matrix(:,1),16), dec2bin(ind_matrix(:,2),16),dec2bin(ind_matrix(:,3),16),dec2bin(ind_matrix(:,4),16), ...
-                            dec2bin(ind_matrix(:,5),16), dec2bin(ind_matrix(:,6),16),dec2bin(ind_matrix(:,7),16),dec2bin(ind_matrix(:,8),16)];
-                    end
-
-                    % Just to test if there are bad images, usually 0 area images
-                    figsize = size(c);
-                    if figsize(2)~=diodenum
-                        disp('Not equal to doide number');
-                        return
-                    end
-
-
-                    images.position(kk,:) = [start, j-1];
-                    parent_rec_num(kk)=i;
-                    particle_num(kk) = mod(kk,66536); %hex2dec([dec2hex(data(start-1,7)),dec2hex(data(start-1,8))]);
-
-                    %  Get the particle time
-                    if probetype == 0
-                        bin_convert = [dec2bin(data(header_loc,2),8),dec2bin(data(header_loc,3),8),dec2bin(data(header_loc,4),8)];
-                        part_time = bin2dec(bin_convert);       % Interarrival time in tas clock cycles
-                        tas2d = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'tas'),i-1, 1);
-                        part_time = part_time/tas2d*handles.diodesize/(10^3);
-                        time_in_seconds(kk) = part_time;
-                        particle_sliceCount(kk) = size(ind_matrix, 1); % Experimental for 2DC/2DP ~ Added by Adam Majewski 11/06/17
-                        particle_DOF(kk) = handles.wkday; % Particle dead time for corresponding record ~ Joe Finlon 11/06/17
-
-                        images.int_arrival(kk) = part_time;
-
-                        if(firstpart == 1)
-                            firstpart = 0;
-                            start_hour = handles.hour;
-                            start_minute = handles.minute;
-                            start_second = handles.second;
-%                             start_msec = handles.millisec*10;
-                            start_msec = handles.millisec; % Fixed variable multiplication factor ~ Joe Finlon 11/06/17
-                            % First, we get the hours....
-%                             start_msec = start_msec; % Unnecessary code ~ Joe Finlon 11/06/17
-                            start_microsec = 0;
-                            time_offset_hr = 0;
-                            time_offset_mn = 0;
-                            time_offset_sec = 0;
-                            time_offset_ms = 0;
-
-                            part_hour(kk) = start_hour;
-                            part_min(kk) = start_minute;
-                            part_sec(kk) = start_second;
-                            part_mil(kk) = start_msec;
-%                             part_micro(kk) = 0;
-                            part_mil(kk) = start_microsec; % Changed treatment of this variable for consistency ~ Joe Finlon 11/06/17
-                        else
-                            frac_time = part_time - floor(part_time);
-                            frac_time = frac_time * 1000;
-                            part_micro(kk) = part_micro(kk-1) + (frac_time - floor(frac_time))*1000;
-                            part_mil(kk) = part_mil(kk-1) + floor(frac_time);
-                            part_sec(kk) = part_sec(kk-1) + floor(part_time);
-                            part_min(kk) = part_min(kk-1);
-                            part_hour(kk) = part_hour(kk-1);
-                        end
+                
+                header_loc = j+1;
+                w=w+1;
+                %% Create binary image according to probe type
+                
+                if probetype==0
+                    ind_matrix(1:j-start-1,:) = data(start+1:j-1,:);  % 2DC has 3 slices between particles (sync word timing word and end of particle words)
+                    c=[dec2bin(ind_matrix(:,1),8),dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8)];
+                elseif probetype==1
+                    ind_matrix(1:j-start,:) = data(start:j-1,:);
+                    c=[dec2bin(ind_matrix(:,1),8), dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8), ...
+                        dec2bin(ind_matrix(:,5),8), dec2bin(ind_matrix(:,6),8),dec2bin(ind_matrix(:,7),8),dec2bin(ind_matrix(:,8),8)];
+                elseif probetype==2
+                    ind_matrix(1:j-start,:) = 65535 - data(start:j-1,:); % I used 1 to indicate the illuminated doides for HVPS
+                    c=[dec2bin(ind_matrix(:,1),16), dec2bin(ind_matrix(:,2),16),dec2bin(ind_matrix(:,3),16),dec2bin(ind_matrix(:,4),16), ...
+                        dec2bin(ind_matrix(:,5),16), dec2bin(ind_matrix(:,6),16),dec2bin(ind_matrix(:,7),16),dec2bin(ind_matrix(:,8),16)];
+                end
+                
+                % Just to test if there are bad images, usually 0 area images
+                figsize = size(c);
+                if figsize(2)~=diodenum
+                    disp('Not equal to doide number');
+                    return
+                end
+                
+                
+                images.position(kk,:) = [start, j-1];
+                parent_rec_num(kk)=i;
+                particle_num(kk) = mod(kk,66536); %hex2dec([dec2hex(data(start-1,7)),dec2hex(data(start-1,8))]);
+                
+                %  Get the particle time
+                if probetype == 0
+                    bin_convert = [dec2bin(data(header_loc,2),8),dec2bin(data(header_loc,3),8),dec2bin(data(header_loc,4),8)];
+                    part_time = bin2dec(bin_convert);       % Interarrival time in tas clock cycles
+                    tas2d = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'tas'),i-1, 1);
+                    part_time = part_time/tas2d*handles.diodesize/(10^3);
+                    time_in_seconds(kk) = part_time;
+                    particle_sliceCount(kk) = size(ind_matrix, 1); % Experimental for 2DC/2DP ~ Added by Adam Majewski 11/06/17
+                    particle_DOF(kk) = handles.wkday; % Particle dead time for corresponding record ~ Joe Finlon 11/06/17
+                    
+                    images.int_arrival(kk) = part_time;
+                    
+                    if(firstpart == 1)
+                        firstpart = 0;
+                        start_hour = handles.hour;
+                        start_minute = handles.minute;
+                        start_second = handles.second;
+                        %                             start_msec = handles.millisec*10;
+                        start_msec = handles.millisec; % Fixed variable multiplication factor ~ Joe Finlon 11/06/17
+                        % First, we get the hours....
+                        %                             start_msec = start_msec; % Unnecessary code ~ Joe Finlon 11/06/17
+                        start_microsec = 0;
+                        time_offset_hr = 0;
+                        time_offset_mn = 0;
+                        time_offset_sec = 0;
+                        time_offset_ms = 0;
                         
-                        part_mil(part_micro >= 1000) = part_mil(part_micro >= 1000) + 1; % Increment milliseconds where needed ~ Joe Finlon 11/06/17
-                        part_micro(part_micro >= 1000) = part_micro(part_micro >= 1000) - 1000; % Fix microseconds where needed ~ Joe Finlon 11/06/17
-
-                        part_sec(part_mil >= 1000) = part_sec(part_mil >= 1000) + 1;
-                        part_mil(part_mil >= 1000) = part_mil(part_mil >= 1000) - 1000;
-
-                        part_min(part_sec >= 60) = part_min(part_sec >= 60) + 1;
-                        part_sec(part_sec >= 60) = part_sec(part_sec >= 60) - 60;
-
-                        part_hour(part_min >= 60) = part_hour(part_min >= 60) + 1;
-                        part_min(part_min >= 60) = part_min(part_min >= 60) - 60;
-                        part_hour(part_hour >= 24) = part_hour(part_hour >= 24) - 24;
-
-                    elseif probetype == 1
-                        bin_convert = [dec2bin(data(start-1,2),8),dec2bin(data(start-1,3),8),dec2bin(data(start-1,4),8), ...
-                            dec2bin(data(start-1,5),8), dec2bin(data(start-1,6),8)];
-
-                        part_hour(kk) = bin2dec(bin_convert(1:5));
-                        part_min(kk) = bin2dec(bin_convert(6:11));
-                        part_sec(kk) = bin2dec(bin_convert(12:17));
-                        part_mil(kk) = bin2dec(bin_convert(18:27));
-                        part_micro(kk) = bin2dec(bin_convert(28:40))*125e-9;
-
-                        % Apply time correction to PIP probe-time for slect PECAN flights - Added by Dan Stechman 8/1/17
-                        if strcmp(projectname, 'PECAN') && strcmp(probename, 'PIP')
-                            if (handles.month == 6 && handles.day == 17)
-                                part_hour_offset = -12;
-                                part_min_offset = 0;
-                                part_sec_offset = 0;
-                            elseif (handles.month == 6 && handles.day == 20) % Time offset was corrected during flight after 6 UTC
-                                if handles.hour < 6
-                                    part_hour_offset = -12;
-                                    part_min_offset = 0;
-                                    part_sec_offset = 0;
-                                else
-                                    part_hour_offset = 0;
-                                    part_min_offset = 0;
-                                    part_sec_offset = 0;
-                                end
-                            elseif (handles.month == 7 && (handles.day >= 6 && handles.day <= 13))
+                        part_hour(kk) = start_hour;
+                        part_min(kk) = start_minute;
+                        part_sec(kk) = start_second;
+                        part_mil(kk) = start_msec;
+                        %                             part_micro(kk) = 0;
+                        part_mil(kk) = start_microsec; % Changed treatment of this variable for consistency ~ Joe Finlon 11/06/17
+                    else
+                        frac_time = part_time - floor(part_time);
+                        frac_time = frac_time * 1000;
+                        part_micro(kk) = part_micro(kk-1) + (frac_time - floor(frac_time))*1000;
+                        part_mil(kk) = part_mil(kk-1) + floor(frac_time);
+                        part_sec(kk) = part_sec(kk-1) + floor(part_time);
+                        part_min(kk) = part_min(kk-1);
+                        part_hour(kk) = part_hour(kk-1);
+                    end
+                    
+                    part_mil(part_micro >= 1000) = part_mil(part_micro >= 1000) + 1; % Increment milliseconds where needed ~ Joe Finlon 11/06/17
+                    part_micro(part_micro >= 1000) = part_micro(part_micro >= 1000) - 1000; % Fix microseconds where needed ~ Joe Finlon 11/06/17
+                    
+                    part_sec(part_mil >= 1000) = part_sec(part_mil >= 1000) + 1;
+                    part_mil(part_mil >= 1000) = part_mil(part_mil >= 1000) - 1000;
+                    
+                    part_min(part_sec >= 60) = part_min(part_sec >= 60) + 1;
+                    part_sec(part_sec >= 60) = part_sec(part_sec >= 60) - 60;
+                    
+                    part_hour(part_min >= 60) = part_hour(part_min >= 60) + 1;
+                    part_min(part_min >= 60) = part_min(part_min >= 60) - 60;
+                    part_hour(part_hour >= 24) = part_hour(part_hour >= 24) - 24;
+                    
+                elseif probetype == 1
+                    bin_convert = [dec2bin(data(start-1,2),8),dec2bin(data(start-1,3),8),dec2bin(data(start-1,4),8), ...
+                        dec2bin(data(start-1,5),8), dec2bin(data(start-1,6),8)];
+                    
+                    part_hour(kk) = bin2dec(bin_convert(1:5));
+                    part_min(kk) = bin2dec(bin_convert(6:11));
+                    part_sec(kk) = bin2dec(bin_convert(12:17));
+                    part_mil(kk) = bin2dec(bin_convert(18:27));
+                    part_micro(kk) = bin2dec(bin_convert(28:40))*125e-9;
+                    
+                    % Apply time correction to PIP probe-time for slect PECAN flights - Added by Dan Stechman 8/1/17
+                    if strcmp(projectname, 'PECAN') && strcmp(probename, 'PIP')
+                        if (handles.month == 6 && handles.day == 17)
+                            part_hour_offset = -12;
+                            part_min_offset = 0;
+                            part_sec_offset = 0;
+                        elseif (handles.month == 6 && handles.day == 20) % Time offset was corrected during flight after 6 UTC
+                            if handles.hour < 6
                                 part_hour_offset = -12;
                                 part_min_offset = 0;
                                 part_sec_offset = 0;
@@ -621,184 +619,193 @@ function imgProc_sm_fix(infile, outfile, probename, n, nEvery, projectname, vara
                                 part_min_offset = 0;
                                 part_sec_offset = 0;
                             end
-
-
-                            part_hour(kk) = part_hour(kk) + part_hour_offset;
-                            part_min(kk) = part_min(kk) + part_min_offset;
-                            part_sec(kk) = part_sec(kk) + part_sec_offset;
-
-                        end
-
-                        particle_sliceCount(kk)=bitand(data(start-1,1),127);
-                        particle_DOF(kk)=bitand(data(start-1,1),128);
-                        particle_partNum(kk)=bin2dec([dec2bin(data(start-1,7),8),dec2bin(data(start-1,8),8)]);
-
-                        time_in_seconds(kk) = part_hour(kk) * 3600 + part_min(kk) * 60 + part_sec(kk) + part_mil(kk)/1000 + part_micro(kk);
-
-
-                        if kk > 1
-                            images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
+                        elseif (handles.month == 7 && (handles.day >= 6 && handles.day <= 13))
+                            part_hour_offset = -12;
+                            part_min_offset = 0;
+                            part_sec_offset = 0;
                         else
-                            images.int_arrival(kk) = 0;
+                            part_hour_offset = 0;
+                            part_min_offset = 0;
+                            part_sec_offset = 0;
                         end
-
-
-                    elseif probetype==2
-
-                        particle_DOF(kk)=bitand(data(header_loc,4), 32768);
-                        particle_partNum(kk)=double(data(header_loc,5));
-                        particle_sliceCount(kk)=double(data(header_loc,6));
-
-                        part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8));       % Interarrival time in clock cycles
-                        part_micro(kk) = part_time;
-                        part_mil(kk)   = 0;
-                        part_sec(kk)   = 0;
-                        part_min(kk)   = 0;
-                        part_hour(kk)  = 0;
-
-                        % -----------------------------------------------------
-                        % calculate the particle time (in seconds) - Added by Joe Finlon - 03/03/17
-                        tempTime = double(handles.hour)*10000+double(handles.minute)*100+double(handles.second); % image record time in HHMMSS
-                        tas2d = tas(tasTime==tempTime); % get TAS for corresponding time period
-
-                        if exist('part_time_prev', 'var')
-                            if isempty(tas2d) % use when no TAS data is available for current time
-                                % compute time difference (sec) between
-                                % particles to determine whether corrections
-                                % are needed (see 'indexRollback' in
-                                % sizeDist.m)
-                                timeDiff = (part_time-part_time_prev)*(handles.diodesize/(10^3)/170);
-
-                                if timeDiff>=-250 % clock cycle hasn't rolled back
-                                    time_in_seconds(kk) = time_in_seconds_prev + timeDiff;
-                                else % perform correction when clock cycle exceeds 2^32 and rolls back
-                                    time_in_seconds(kk) = time_in_seconds_prev + (2^32-1-part_time_prev+part_time)*...
-                                        (handles.diodesize/(10^3)/170);
-                                    disp(['Performing clock cyle time correction. ',num2str(part_time_prev),...
-                                        ' ',num2str(part_time),' ',num2str(time_in_seconds_prev),' ',num2str(time_in_seconds(kk))])
-                                end
-                            else % use the TAS to convert clock cycles to time
-                                % compute time difference (sec) between
-                                % particles to determine whether corrections
-                                % are needed (see 'indexRollback' in
-                                % sizeDist.m)
-                                timeDiff = (part_time-part_time_prev)*(handles.diodesize/(10^3)/tas2d);
-
-                                if timeDiff>=-250 % clock cycle hasn't rolled back
-                                    time_in_seconds(kk) = time_in_seconds_prev + timeDiff;
-                                else % perform correction when TAS clock cycle exceeds 2^32 and rolls back
-                                    time_in_seconds(kk) = time_in_seconds_prev + (2^32-1-part_time_prev+part_time)*...
-                                        (handles.diodesize/(10^3)/tas2d);
-                                    disp(['Performing clock cyle time correction. ',num2str(part_time_prev),...
-                                        ' ',num2str(part_time),' ',num2str(time_in_seconds_prev),' ',num2str(time_in_seconds(kk))])
-                                end
-                            end
-                        else % run for the first particle in data file
-                            if isempty(tas2d)
-                                time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/170);
-                            else
-                                time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/tas2d);
-                            end
-                        end
-
-                        if(kk>1) % ** Use diff(time_in_seconds) to compute int-arr time in post-processing **
-                            images.int_arrival(kk) = time_in_seconds(kk)-time_in_seconds(kk-1);
-                        else
-                            images.int_arrival(kk) = 0;
-                        end
-
-                        part_time_prev = part_time; % assign the clock cycle for use in next iteration
-                        time_in_seconds_prev = time_in_seconds(kk);
-                        % -----------------------------------------------------
+                        
+                        
+                        part_hour(kk) = part_hour(kk) + part_hour_offset;
+                        part_min(kk) = part_min(kk) + part_min_offset;
+                        part_sec(kk) = part_sec(kk) + part_sec_offset;
+                        
                     end
-
-                    temptimeinhhmmss = part_hour(kk) * 10000 + part_min(kk) * 100 + part_sec(kk);
-                    %                 if (temptimeinhhmmss<0 || temptimeinhhmmss>240000)
-                    %                    fprintf('%d\n',temptimeinhhmmss);
-                    %                 end
-
-                    slices_ver = length(start:j-1);
-                    rec_time(kk)=double(handles.hour)*10000+double(handles.minute)*100+double(handles.second);
-                    rec_date(kk)=double(handles.year)*10000+double(handles.month)*100+double(handles.day);
-                    rec_millisec(kk)=handles.millisec;
-                    %                 rec_wkday(kk)=handles.wkday(i);
-
-
-                    % % 				if mod(i,100) == 0
-                    % % 					fprintf('\trecord time - particle time = %.3f\n',(hhmmss2insec(rec_time(kk))-time_in_seconds(kk)));
-                    % % 				end
-
-
-                    %% Determine the Particle Habit
-                    %  We use the Holroyd algorithm here
-                    handles.bits_per_slice = diodenum;
-                    if calcAllDiodeStats
-                        images.diode_stats(kk,:) = sum(c=='0',1); % Option to save diode stats for every particle
-                    end
-                    diode_stats = diode_stats + sum(c=='0',1);
-                    csum = sum(c=='0',1);
-
-                    images.holroyd_habit(kk) = holroyd(handles,c);
-
-                    %% Determine if the particle is rejected or not
-                    %  Calculate the Particle Length, Width, Area, Auto Reject
-                    %  Status And more... See calculate_reject_unified()
-                    %  funtion for more information
-
-                    [images.image_length(kk),images.image_width(kk),images.image_area(kk), ...
-                        images.longest_y_within_a_slice(kk),images.max_top_edge_touching(kk),images.max_bottom_edge_touching(kk),...
-                        images.image_touching_edge(kk), images.auto_reject(kk),images.is_hollow(kk),images.percent_shadow(kk),images.part_z(kk),...
-                        images.sf(kk),images.area_hole_ratio(kk),handles]=calculate_reject_unified(c,handles,images.holroyd_habit(kk));
-
-                    images.max_hole_diameter(kk) = handles.max_hole_diameter;
-                    images.edge_at_max_hole(kk) = handles.edge_at_max_hole;
-
-                    max_horizontal_length = images.image_length(kk);
-                    max_vertical_length = images.longest_y_within_a_slice(kk);
-                    image_area = images.image_area(kk);
-
-                    diode_size= handles.diodesize;
-                    corrected_horizontal_diode_size = handles.diodesize;
-                    largest_edge_touching  = max(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
-                    smallest_edge_touching = min(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
-
-                    %% Calculate more size deciptor using more advanced techniques
-                    %  See dropsize for more information
-                    [images.center_in(kk),images.axis_ratio(kk),images.diam_circle_fit(kk),images.diam_horiz_chord(kk),images.diam_vert_chord(kk),...
-                        images.diam_horiz_mean(kk), images.diam_spheroid(kk)]=dropsize(max_horizontal_length,max_vertical_length,image_area...
-                        ,largest_edge_touching,smallest_edge_touching,diode_size,corrected_horizontal_diode_size, diodenum);
-
-                    %% Calculate size deciptor using bamex code
-                    %  See dropsize_new for more information
-                    % images.diam_bamex(kk) = dropsize_new(c, largest_edge_touching, smallest_edge_touching, diodenum, corrected_horizontal_diode_size, handles.diodesize, max_vertical_length);
-
-                    %% Using OpenCV C program to calculate length, width and radius. This
-                    %% Get diameter of the smallest-enclosing circle, rectangle and ellipse
-                    %images.minR(kk)=particlesize_cgal(c);
-                    images.minR(kk)=CGAL_minR(c);
-                    images.AreaR(kk)=2*sqrt(images.image_area(kk)/3.1415926);  % Calculate the Darea (area-equivalent diameter)
-                    images.Perimeter(kk)=ParticlePerimeter(c);
-
-                    if 1==iRectEllipse
-                        [images.RectangleL(kk), images.RectangleW(kk), images.RectangleAngle(kk)] = CGAL_RectSize(c);
-                        [images.EllipseL(kk), images.EllipseW(kk), images.EllipseAngle(kk)]       = CGAL_EllipseSize(c);
-                    end
-                    %% Get the area ratio using the DL=max(DT,DP), only observed area are used
-                    if images.image_length(kk) > images.image_width(kk)
-                        images.percent_shadow(kk) = images.image_area(kk) / (pi * images.image_length(kk).^ 2 / 4);
-                    elseif images.image_width(kk) ~= 0
-                        images.percent_shadow(kk) = images.image_area(kk) / (pi * images.image_width(kk).^ 2 / 4);
+                    
+                    particle_sliceCount(kk)=bitand(data(start-1,1),127);
+                    particle_DOF(kk)=bitand(data(start-1,1),128);
+                    particle_partNum(kk)=bin2dec([dec2bin(data(start-1,7),8),dec2bin(data(start-1,8),8)]);
+                    
+                    time_in_seconds(kk) = part_hour(kk) * 3600 + part_min(kk) * 60 + part_sec(kk) + part_mil(kk)/1000 + part_micro(kk);
+                    
+                    
+                    if kk > 1
+                        images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
                     else
-                        images.percent_shadow(kk) = 0;
+                        images.int_arrival(kk) = 0;
                     end
-
-                    start = j + 2;
-                    kk = kk + 1;
-                    clear c ind_matrix
+                    
+                    
+                elseif probetype==2
+                    
+                    particle_DOF(kk)=bitand(data(header_loc,4), 32768);
+                    particle_partNum(kk)=double(data(header_loc,5));
+                    particle_sliceCount(kk)=double(data(header_loc,6));
+                    
+                    part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8));       % Interarrival time in clock cycles
+                    part_micro(kk) = part_time;
+                    part_mil(kk)   = 0;
+                    part_sec(kk)   = 0;
+                    part_min(kk)   = 0;
+                    part_hour(kk)  = 0;
+                    
+                    % -----------------------------------------------------
+                    % calculate the particle time (in seconds) - Added by Joe Finlon - 03/03/17
+                    tempTime = double(handles.hour)*10000+double(handles.minute)*100+double(handles.second); % image record time in HHMMSS
+                    tas2d = tas(tasTime==tempTime); % get TAS for corresponding time period
+                    
+                    if exist('part_time_prev', 'var')
+                        if isempty(tas2d) % use when no TAS data is available for current time
+                            % compute time difference (sec) between
+                            % particles to determine whether corrections
+                            % are needed (see 'indexRollback' in
+                            % sizeDist.m)
+                            timeDiff = (part_time-part_time_prev)*(handles.diodesize/(10^3)/170);
+                            
+                            if timeDiff>=-250 % clock cycle hasn't rolled back
+                                time_in_seconds(kk) = time_in_seconds_prev + timeDiff;
+                            else % perform correction when clock cycle exceeds 2^32 and rolls back
+                                time_in_seconds(kk) = time_in_seconds_prev + (2^32-1-part_time_prev+part_time)*...
+                                    (handles.diodesize/(10^3)/170);
+                                disp(['Performing clock cyle time correction. ',num2str(part_time_prev),...
+                                    ' ',num2str(part_time),' ',num2str(time_in_seconds_prev),' ',num2str(time_in_seconds(kk))])
+                            end
+                        else % use the TAS to convert clock cycles to time
+                            % compute time difference (sec) between
+                            % particles to determine whether corrections
+                            % are needed (see 'indexRollback' in
+                            % sizeDist.m)
+                            timeDiff = (part_time-part_time_prev)*(handles.diodesize/(10^3)/tas2d);
+                            
+                            if timeDiff>=-250 % clock cycle hasn't rolled back
+                                time_in_seconds(kk) = time_in_seconds_prev + timeDiff;
+                            else % perform correction when TAS clock cycle exceeds 2^32 and rolls back
+                                time_in_seconds(kk) = time_in_seconds_prev + (2^32-1-part_time_prev+part_time)*...
+                                    (handles.diodesize/(10^3)/tas2d);
+                                disp(['Performing clock cyle time correction. ',num2str(part_time_prev),...
+                                    ' ',num2str(part_time),' ',num2str(time_in_seconds_prev),' ',num2str(time_in_seconds(kk))])
+                            end
+                        end
+                    else % run for the first particle in data file
+                        if isempty(tas2d)
+                            time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/170);
+                        else
+                            time_in_seconds(kk) = part_time*(handles.diodesize/(10^3)/tas2d);
+                        end
+                    end
+                    
+                    if(kk>1) % ** Use diff(time_in_seconds) to compute int-arr time in post-processing **
+                        images.int_arrival(kk) = time_in_seconds(kk)-time_in_seconds(kk-1);
+                    else
+                        images.int_arrival(kk) = 0;
+                    end
+                    
+                    part_time_prev = part_time; % assign the clock cycle for use in next iteration
+                    time_in_seconds_prev = time_in_seconds(kk);
+                    % -----------------------------------------------------
                 end
                 
-                j = j + 1;
+                temptimeinhhmmss = part_hour(kk) * 10000 + part_min(kk) * 100 + part_sec(kk);
+                %                 if (temptimeinhhmmss<0 || temptimeinhhmmss>240000)
+                %                    fprintf('%d\n',temptimeinhhmmss);
+                %                 end
+                
+                slices_ver = length(start:j-1);
+                rec_time(kk)=double(handles.hour)*10000+double(handles.minute)*100+double(handles.second);
+                rec_date(kk)=double(handles.year)*10000+double(handles.month)*100+double(handles.day);
+                rec_millisec(kk)=handles.millisec;
+                %                 rec_wkday(kk)=handles.wkday(i);
+                
+                
+                % % 				if mod(i,100) == 0
+                % % 					fprintf('\trecord time - particle time = %.3f\n',(hhmmss2insec(rec_time(kk))-time_in_seconds(kk)));
+                % % 				end
+                
+                
+                %% Determine the Particle Habit
+                %  We use the Holroyd algorithm here
+                handles.bits_per_slice = diodenum;
+                if calcAllDiodeStats
+                    images.diode_stats(kk,:) = sum(c=='0',1); % Option to save diode stats for every particle
+                end
+                diode_stats = diode_stats + sum(c=='0',1);
+                csum = sum(c=='0',1);
+                
+                images.holroyd_habit(kk) = holroyd(handles,c);
+                
+                %% Determine if the particle is rejected or not
+                %  Calculate the Particle Length, Width, Area, Auto Reject
+                %  Status And more... See calculate_reject_unified()
+                %  funtion for more information
+                
+                [images.image_length(kk),images.image_width(kk),images.image_area(kk), ...
+                    images.longest_y_within_a_slice(kk),images.max_top_edge_touching(kk),images.max_bottom_edge_touching(kk),...
+                    images.image_touching_edge(kk), images.auto_reject(kk),images.is_hollow(kk),images.percent_shadow(kk),images.part_z(kk),...
+                    images.sf(kk),images.area_hole_ratio(kk),handles]=calculate_reject_unified(c,handles,images.holroyd_habit(kk));
+                
+                images.max_hole_diameter(kk) = handles.max_hole_diameter;
+                images.edge_at_max_hole(kk) = handles.edge_at_max_hole;
+                
+                max_horizontal_length = images.image_length(kk);
+                max_vertical_length = images.longest_y_within_a_slice(kk);
+                image_area = images.image_area(kk);
+                
+                diode_size= handles.diodesize;
+                corrected_horizontal_diode_size = handles.diodesize;
+                largest_edge_touching  = max(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
+                smallest_edge_touching = min(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
+                
+                %% Calculate more size deciptor using more advanced techniques
+                %  See dropsize for more information
+                [images.center_in(kk),images.axis_ratio(kk),images.diam_circle_fit(kk),images.diam_horiz_chord(kk),images.diam_vert_chord(kk),...
+                    images.diam_horiz_mean(kk), images.diam_spheroid(kk)]=dropsize(max_horizontal_length,max_vertical_length,image_area...
+                    ,largest_edge_touching,smallest_edge_touching,diode_size,corrected_horizontal_diode_size, diodenum);
+                
+                %% Calculate size deciptor using bamex code
+                %  See dropsize_new for more information
+                % images.diam_bamex(kk) = dropsize_new(c, largest_edge_touching, smallest_edge_touching, diodenum, corrected_horizontal_diode_size, handles.diodesize, max_vertical_length);
+                
+                %% Using OpenCV C program to calculate length, width and radius. This
+                %% Get diameter of the smallest-enclosing circle, rectangle and ellipse
+                %images.minR(kk)=particlesize_cgal(c);
+                images.minR(kk)=CGAL_minR(c);
+                images.AreaR(kk)=2*sqrt(images.image_area(kk)/3.1415926);  % Calculate the Darea (area-equivalent diameter)
+                images.Perimeter(kk)=ParticlePerimeter(c);
+                
+                if 1==iRectEllipse
+                    [images.RectangleL(kk), images.RectangleW(kk), images.RectangleAngle(kk)] = CGAL_RectSize(c);
+                    [images.EllipseL(kk), images.EllipseW(kk), images.EllipseAngle(kk)]       = CGAL_EllipseSize(c);
+                end
+                %% Get the area ratio using the DL=max(DT,DP), only observed area are used
+                if images.image_length(kk) > images.image_width(kk)
+                    images.percent_shadow(kk) = images.image_area(kk) / (pi * images.image_length(kk).^ 2 / 4);
+                elseif images.image_width(kk) ~= 0
+                    images.percent_shadow(kk) = images.image_area(kk) / (pi * images.image_width(kk).^ 2 / 4);
+                else
+                    images.percent_shadow(kk) = 0;
+                end
+                
+                start = j + 2;
+                kk = kk + 1;
+                clear c ind_matrix
             end
+                
+            j = j + 1;
+        end
 		
 		%% Write out the processed information on NETCDF
 		if kk > 1
