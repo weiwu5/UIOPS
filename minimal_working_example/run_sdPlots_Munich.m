@@ -9,6 +9,7 @@
 % Using 05 December 2015 case from OLYMPEX (partial flight)
 
 clearvars;
+addpath(fullfile(pwd, '..')) % directory for main scripts
 fileDirectory = [pwd, '/files/'];
 date = '20151205';
 probeName = {'2DS', 'HVPS'}; % use both '2DS' and 'HVPS' for this example

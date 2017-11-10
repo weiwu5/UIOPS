@@ -8,6 +8,7 @@
 % Using 05 December 2015 case from OLYMPEX (partial flight)
 
 clearvars;
+addpath(fullfile(pwd, '..')) % directory for main scripts
 fileDirectory = [pwd, '/files/'];
 projectName = 'GPM'; % will use predefined probe settings already in sizeDist.m
 date = '20151205';

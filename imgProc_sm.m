@@ -71,6 +71,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 %          prevented code to run for other projects
 %          Removed unnecessary 'else' statement immediately following the
 %          data integrity statement block
+%          Changed netCDF type for overload variable to work with 2DC/2DP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -221,7 +222,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
     netcdf.putAtt(f, varid102, 'Units', '--')
     netcdf.putAtt(f, varid102, 'Description', 'Number of slices containing particle')
     
-    varid103  = netcdf.defVar(f,'DMT_DOF_SPEC_OVERLOAD','short',dimid0); % Modified variable to handle PMS dead time ~ Joe Finlon 11/06/17
+    varid103  = netcdf.defVar(f,'DMT_DOF_SPEC_OVERLOAD','double',dimid0); % Modified variable to handle PMS dead time ~ Joe Finlon 11/06/17
     netcdf.putAtt(f, varid103, 'Units', 'ms (2DC/2DP only)')
     netcdf.putAtt(f, varid103, 'Description', 'Unitless flag denoting out-of-focus (DMT) or overloaded (SPEC) particles. Dead time for corresponding image record for PMS probes.')
 	

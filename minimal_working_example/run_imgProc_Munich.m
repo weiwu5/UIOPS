@@ -7,6 +7,7 @@
 %% Stitch Together 2DS File (Original File too Large for GitHub)
 fprintf('Initializing data files.\n')
 fileDirectory = [pwd, '/'];
+addpath(fullfile(pwd, '..')) % directory for main scripts
 date = '20151205';
 
 inFilename1 = [fileDirectory, '2DS.', date, '_subset1.V.cdf'];

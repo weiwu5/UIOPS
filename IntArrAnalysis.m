@@ -345,9 +345,10 @@ end
 
 function [dateValue] = time2datenum(date, timehhmmss)
 
-secFromMidnight = floor(timehhmmss/10000)*3600 + floor(mod(timehhmmss,10000)/100)*60 + floor(mod(timehhmmss,100));
-dateVector = [floor(date/10000), floor(mod(date,10000)/100), floor(mod(date,100)) , zeros(length(date),1),...
-    zeros(length(date),1), secFromMidnight];
+secFromMidnight = floor(double(timehhmmss)/10000)*3600 + floor(mod(double(timehhmmss),10000)/100)*60 +...
+    floor(mod(double(timehhmmss),100));
+dateVector = [floor(double(date)/10000), floor(mod(double(date),10000)/100), floor(mod(double(date),100)) ,...
+    zeros(length(date),1), zeros(length(date),1), secFromMidnight];
 dateValue = datenum(dateVector);
 
 end
