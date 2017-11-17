@@ -1,4 +1,4 @@
-function IntArrAnalysis_revised(infile,directory,probeName,ianalysis,numparticles,dateString,varargin)
+function IntArrAnalysis(infile,directory,probeName,ianalysis,numparticles,dateString,varargin)
 %% Preamble
 %  This script determines the inter-arrival time between peaks in a bimodal
 %  distribution for each population of particles. Follows Field et al.

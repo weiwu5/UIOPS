@@ -8,14 +8,28 @@ The documentation below contains detailed instructions to run the software, and 
 - **Dan Stechman** (stechma2@illinois.edu)
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
-## What's New (8/8/17)
+## What's New
+**November 17, 2017**
+- **sizeDist:** Implemented user argument for handling how inter-arrival time thresholds are implemented
+- **sizeDist:** Moved toggles for processing aspect ratio info and saving of info for rejected particles, inter-arrival times, and sample volume up to the user input arguments
+- **hhmmss2insec** and **insec2hhmmss:** Changed ingested arguments to double precision to fix rare issue where "Error on sizing" message pops up when running _sizeDist_
+**November 9, 2017**
+- **imgProc\_sm:** Fixed PECAN-specific corrupt record identification that prevented code to run for other projects
+- **imgProc\_sm:** Romoved unnecessary 'else' statement immediately following the data integrity statement block
+- **imgProc\_sm:** Changed netCDF type for overload variable to work with the 2DC/2DP
+**November 6, 2017**
+- **imgProc\_sm:** Improved handling of image buffers when zero-image particles are detected
+- **imgProc\_sm:** Fixed millisec conversion and handling of millisec/microsec values > 1000
+- **imgProc\_sm:** Buffer overload times now saved for PMS platform data for subsequent sample volume correction in sizeDist
+- **sizeDist:** Improved sample volume treatment for 2DC/2DP using the buffer overload time
+**August 8, 2017**
 - **imgProc\_sm:** Improved variable types when saving data to netCDF to allow up to 40% smaller file sizes!
 - **imgProc\_sm:** Improvements to handling corrupted records with CIP/PIP
 - **sizeDist:** Cleaned up some code and made minor code formatting changes
 - Added a few example helper scripts to demonstrate how base UIOPS scripts are run (will be moved to separate 'Examples' folder in future)
 
 ## Dependencies
-**Supported OSes:** Linux, Mac (Windows support coming in the future)  
+**Supported OSes:** Linux, Mac (MATLAB Windows support coming in the future)  
 **MATLAB Versions:** R2015a and higher (see https://www.mathworks.com/products/matlab.html for download and more info; student version from $99 USD; check w/ university for possible university-wide license)  
 **MATLAB Toolboxes:** Parallel Computing, Statistics and Machine Learning, Curve Fitting, Image Processing  
 **Supported Probes:** 2DS, HVPS, CIP, PIP, 2DC, 2DP  
@@ -40,18 +54,19 @@ The documentation below contains detailed instructions to run the software, and 
    **read\_binary\_SEA.m:** Converts SEA raw data to netCDF format  
    **read\_binary\_DMT.m:** Convert DMT raw data to netCDF format  
 - **runImgProc.m:** Function to set variables to run imgProc\_sm.m
-- **run\_imgProc\_Munich.m:** Helper function to run imgProc\_sm on included sample dataset
-- **run\_intArrAnalysis\_Munich.m:** Helper function to run intArrAnalysis on included sample dataset
 - **runSizeDistPECAN.m:** Example function to do size distribution
-- **run\_sdPlots\_Munich.m:** Plots example distribution results on included sample dataset
-- **run\_sizeDist\_Munich.m:** Helper function to run sizeDist on included sample dataset
 - **single_area.m:** Calculates the area of a paricle using the A-D relationship from Mitchell (1996) (used in calculation of particle fallspeed)
 - **single_mass.m:** Calculates the mass of a single particle
 - **single_vt.m:** Calculates the particle fallspeed of a single particle
 - **sizeDist.m:** Generates size distributions
+- **minimal\_working\_example/:** -- DIRECTORY CONTAINING HELPER SCRIPTS FOR A SAMPLE DATASET --
+   **../run\_imgProc\_Munich.m:** Helper function to run imgProc\_sm on included sample dataset
+   **../run\_intArrAnalysis\_Munich.m:** Helper function to run intArrAnalysis on included sample dataset
+   **../run\_sizeDist\_Munich.m:** Helper function to run sizeDist on included sample dataset
+   **../run\_sdPlots\_Munich.m:** Plots example distribution results on included sample dataset
 
 ## Minimum Working Example
-The UIOPS repository contains a sample dataset for you to test UIOPS on your system. Included are sample image files and helper scripts that allow the individual scripts to be executed. To save file space, the first step in processing (_read\_binary\_\*_) is skipped. Output files and plots are saved to a 'files' directory within the downloaded repository. To run this example execute the following scripts below.
+The UIOPS repository contains a sample dataset for you to test UIOPS on your system. Included are sample image files and helper scripts that allow the individual scripts to be executed. To save file space, the first step in processing (_read\_binary\_\*_) is skipped. Output files and plots are saved to a 'files' directory within the downloaded repository. To run this example execute the following scripts below within the _minimum\_working\_example/_ directory.
 
 1. run\_imgProc\_Munich
 2. run\_intArrAnalysis\_Munich (only analyzes 2DS inter-arrival times)
@@ -86,7 +101,7 @@ Variables outputted from sizeDist are saved with a combination of dimensions: ti
 - **msec:** Sub-second time of image record in which the particle resides [dimensions: time; units: ms]
 - **Time_in_seconds:** Time since probe was activated [dimensions: time; units: s]
 - **SliceCount:** Number of slices containing particle [SPEC/DMT only; dimensions: time]
-- **DMT_DOF_SPEC_OVERLOAD:** Flag denoting out-of-focus (DMT) or overloaded (SPEC) particles [SPEC/DMT only; dimensions: time]
+- **DMT_DOF_SPEC_OVERLOAD:** Flag denoting out-of-focus (DMT) or overloaded (SPEC) particles. Overload time for each particle (PMS) in encompassing record. [dimensions: time; units (PMS): ms]
 - **Particle_number_all:** Index of particle in 2-D buffer [SPEC/DMT only; dimensions: time]
 - **position:** Slice within image record where particle is first/last sampled [dimensions: position x time]
 - **particle_time:** Particle time (not available for 2DS/HVPS) [dimensions: time; units: HHMMSS]
@@ -151,7 +166,7 @@ The _intArrAnalysis_ script fits the inter-arrival times of a population of part
 ## Creating Size Distributions
 The _sizeDist_ script generates size distributions of number _N_, mass _M_, area _A_, area ratio, aspect ratio, etc. as well as multiple bulk variables for a given probe. The size bins in which to partition particles can be set to the probe's original diode resolution or a defined array with varying bin widths at the beginning of the script. This and other presets can be fine-tuned in the beginning by adding a project name to the project case clause.
 
-**sizeDist(** inFilename [string], outFilename [string], tas [array], flightTime [array], probeName [string], sizeMethod [num], saMethod [num], pressure [array], temperature [array], projectName [string], date [string], iaThreshFilename [optional string] **)**
+**sizeDist(** inFilename [string], outFilename [string], tas [array], flightTime [array], probeName [string], sizeMethod [num], saMethod [num], pressure [array], temperature [array], iaThreshType [num], createAspectRatio [num], saveBadParticles [num], saveIAandSV [num], projectName [string], date [string], iaThreshFilename [optional string] **)**
    **inFilename:** File path of PBP data file  
    ** outFilename:** Filename to save size distribution data  
    **tas:** True air speed loaded as an array (e.g., within a helper script) [m/s]  
@@ -161,6 +176,10 @@ The _sizeDist_ script generates size distributions of number _N_, mass _M_, area
    **saMethod:** 0 (center-in), 1 (entire-in), 2 (Heymsfield & Parrish (1978) correction)  
    **pressure:** Aircraft pressure loaded as an array (e.g., within a helper script) [hPa]  
    **temperature:** Aircraft temperature loaded as an array (e.g., within a helper script) [deg C]  
+   **iaThreshType:** 0: Campaign/probe default; 1: Time-dependent; 2: Spiral-dependent  
+   **createAspectRatio:** 0: Do not process aspect ratio info; 1: Process this info  
+   **saveBadParticles:** 0: Do not save info on rejected particles, inc. PSDs; 1: Save info  
+   **saveIAandSV:** 0: Do not save info on inter-arrival time and sample volume, inc. PSDs; 1: Save info  
    **projectName:** If project-specific presets are not used then supply an empty string  
    **date:** Start date of flight [HHMMSS]  
    **iaThreshFilename:** Filename for inter-arrival time threshold data (length must equal the # of particles; only needed if you're using a time-varying threshold)

@@ -41,6 +41,10 @@
 %           Joe Finlon, 06/26/17
 %   * Improved SV treatment for 2DC/2DP using buffer overload time.
 %           Joe Finlon & Adam Majewski, 11/06/17
+%   * Implemented toggle for type of inter-arrival time threshold within
+%   input arguemnts. Also moved toggles for saving additional data to input
+%   arguments.
+%           Joe Finlon, 11/17/17
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -52,14 +56,20 @@
 %    SAmethod:      0: Center in; 1: Entire in; 2: With Correction
 %    Pres:          1 second pressure data
 %    Temp:          1 second temperature data
+%    iaThreshType:  0: Campaign/probe default; 1: Time-dependent; 2: Spiral-dependent
+%    iCreateAspectRatio:    0: Do not process aspect ratio info; 1: Process this info
+%    iCreateBad:    0: Do not save info on rejected particles, inc. PSDs; 1: Save info
+%    iSaveIntArrSV: 0: Do not save info on inter-arrival time and sample volume, inc. PSDs; 1: Save info
 %    projectname:   Project name, string
 %    ddate:         Date to be analyzed, string (YYYYMMDD)
+%    varargin:      [OPTIONAL] String containing file path for time-dependent inter-arrival threshold data
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmethod, Pres, Temp, projectname, ddate, varargin)
-iCreateBad = 0; % Default not to output bad particles PSDs and other info
-iCreateAspectRatio = 0; % Default not to process aspect ratio info
-iSaveIntArrSV = 1; % Default not to save inter-arrival and sample volume information
+function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmethod, Pres, Temp, iaThreshType, iCreateAspectRatio, iCreateBad, iSaveIntArrSV, projectname, ddate, varargin)
+% BELOW ARGUMENTS COMMENTED OUT AS THEY ARE NOW MOVED INTO INPUT ARGS ~ Joe Finlon, 11/17/17
+% iCreateBad = 0; % Default not to output bad particles PSDs and other info
+% iCreateAspectRatio = 0; % Default not to process aspect ratio info
+% iSaveIntArrSV = 0; % Default not to save inter-arrival and sample volume information
 %% Interarrival threshold file specification
 % Can be implemented if a time-dependent threshold is required - add 'varargin' to arguments in function header above
 
@@ -884,7 +894,7 @@ for i=1:length(tas)
         % Ingest previously calculated interarrival time threshold and flag in auto_reject appropriately to remove particle
 		% flagged with short inter arrv time, and the one immediately before it
         
-        if applyIntArrThresh && length(varargin) == 1 && strcmp(iaThreshFile,'NONE') == 0
+        if iaThreshType == 1 && applyIntArrThresh && length(varargin) == 1 && strcmp(iaThreshFile,'NONE') == 0 % Modified ~ Joe Finlon, 11/17/17
             auto_reject_preIAT = auto_reject;
 			iaThresh_ncid = netcdf.open(iaThreshFile,'nowrite');
 			iaThresh = netcdf.getVar(iaThresh_ncid,netcdf.inqVarID(iaThresh_ncid,'threshold'),start,count);
@@ -1013,7 +1023,7 @@ for i=1:length(tas)
         % Currently this is spiral-dependent and uses a threshold defined in the header of this script
         % Flag particles as shattered if their interarrival time is less than or equal to the threshold. Also flag the particle
         % immediately before the target particle.
-        if applyIntArrThresh
+        if iaThreshType == 2 && applyIntArrThresh
 			% If the first particle in the next 1-sec period has a small interarrival time, we flag the last particle of
 			% the current period as shattered as well
 			if ~isempty(int_arr2)
