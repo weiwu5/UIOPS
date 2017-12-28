@@ -9,24 +9,32 @@ The documentation below contains detailed instructions to run the software, and 
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
 ## What's New
+**December 28, 2018**
+- **imgProc\_sm:** Added support for Fast2DC probe (64 diode array)  
+- **imgProc\_sm:** Moved iRectEllipse and iCalcAllDiodeStats to input parameters  
+- **imgProc\_sm:** Added software preamble printed statements  
+
 **November 17, 2017**
-- **sizeDist:** Implemented user argument for handling how inter-arrival time thresholds are implemented
-- **sizeDist:** Moved toggles for processing aspect ratio info and saving of info for rejected particles, inter-arrival times, and sample volume up to the user input arguments
-- **hhmmss2insec** and **insec2hhmmss:** Changed ingested arguments to double precision to fix rare issue where "Error on sizing" message pops up when running _sizeDist_
+- **sizeDist:** Implemented user argument for handling how inter-arrival time thresholds are implemented  
+- **sizeDist:** Moved toggles for processing aspect ratio info and saving of info for rejected particles, inter-arrival times, and sample volume up to the user input arguments  
+- **hhmmss2insec** and **insec2hhmmss:** Changed ingested arguments to double precision to fix rare issue where "Error on sizing" message pops up when running _sizeDist_  
+
 **November 9, 2017**
-- **imgProc\_sm:** Fixed PECAN-specific corrupt record identification that prevented code to run for other projects
-- **imgProc\_sm:** Romoved unnecessary 'else' statement immediately following the data integrity statement block
-- **imgProc\_sm:** Changed netCDF type for overload variable to work with the 2DC/2DP
+- **imgProc\_sm:** Fixed PECAN-specific corrupt record identification that prevented code to run for other projects  
+- **imgProc\_sm:** Romoved unnecessary 'else' statement immediately following the data integrity statement block  
+- **imgProc\_sm:** Changed netCDF type for overload variable to work with the 2DC/2DP  
+
 **November 6, 2017**
-- **imgProc\_sm:** Improved handling of image buffers when zero-image particles are detected
-- **imgProc\_sm:** Fixed millisec conversion and handling of millisec/microsec values > 1000
-- **imgProc\_sm:** Buffer overload times now saved for PMS platform data for subsequent sample volume correction in sizeDist
-- **sizeDist:** Improved sample volume treatment for 2DC/2DP using the buffer overload time
+- **imgProc\_sm:** Improved handling of image buffers when zero-image particles are detected  
+- **imgProc\_sm:** Fixed millisec conversion and handling of millisec/microsec values > 1000  
+- **imgProc\_sm:** Buffer overload times now saved for PMS platform data for subsequent sample volume correction in sizeDist  
+- **sizeDist:** Improved sample volume treatment for 2DC/2DP using the buffer overload time  
+
 **August 8, 2017**
-- **imgProc\_sm:** Improved variable types when saving data to netCDF to allow up to 40% smaller file sizes!
-- **imgProc\_sm:** Improvements to handling corrupted records with CIP/PIP
-- **sizeDist:** Cleaned up some code and made minor code formatting changes
-- Added a few example helper scripts to demonstrate how base UIOPS scripts are run (will be moved to separate 'Examples' folder in future)
+- **imgProc\_sm:** Improved variable types when saving data to netCDF to allow up to 40% smaller file sizes!  
+- **imgProc\_sm:** Improvements to handling corrupted records with CIP/PIP  
+- **sizeDist:** Cleaned up some code and made minor code formatting changes  
+- Added a few example helper scripts to demonstrate how base UIOPS scripts are run (will be moved to separate 'Examples' folder in future)  
 
 ## Dependencies
 **Supported OSes:** Linux, Mac (MATLAB Windows support coming in the future)  
@@ -84,12 +92,14 @@ UIOPS contains separate scripts to decompress the binary file for different prob
 ## Processing Individual Particles
 The imgProc\_sm script parses an image record to compute various size, morphological, and diagnistic properites for individual particles.
 
-**imgProc_sm(** inFilename [string], outFilename [string], probeName [string], nthDataChunk [num], frameChunkSize [num], projectName [string], flightFilename [optional string] **)**  
+**imgProc_sm(** inFilename [string], outFilename [string], probeName [string], nthDataChunk [num], frameChunkSize [num], projectName [string], iRectEllipse [num], iCalcAllDiodeStats [num], flightFilename [optional string] **)**  
    **inFilename:** netCDF file generated from _read\_binary\_\*_ script   
-   **probeName:** "2DS", "HVPS", "CIP", "PIP", "2DC", "2DP"  
+   **probeName:** "2DS", "HVPS", "CIP", "PIP", "2DC", "2DP", "Fast2DC"  
    **nthDataChunk:** If not running in parallel set this value to 1; if running in parallel set up parfor loop with this variable changing within the parallel loop  
    **frameChunkSize:** Maximum # of image records to process for each output file created  
-   **projectName:** Insert an empty string if you haven't added modified probe presets specific to a field project   
+   **projectName:** Insert an empty string if you haven't added modified probe presets specific to a field project  
+   **iRectEllipse:** 0 - Do not process rectangle/ellipse fit dimensions; 1 - Process this info  
+   **iCalcAllDiodeStats:** 0 - Do not save diode stats for every particle (large files); 1 - Save  
    **flightFilename:** Only needed for SPEC probes; requires netCDF file generated from _formatFlightData_ script
 ### Particle Techniques Applied
 - Dmax following a minimum enclosing circle, rectangle, and ellipse follows the CGAL library (https://www.cgal.org/) using C++ code compiled within MATLAB wrappers
@@ -135,7 +145,7 @@ Variables outputted from sizeDist are saved with a combination of dimensions: ti
 - **size_factor:** Dmax reduction factor folowing Korolev (2007) correction [dimensions: time]
 - **holroyd_habit:** ASCII habit code following the Holroyd (1987) algorithm ("M" or 77: zero image; "C" or 67: center-out image; "t" or 116: tiny; "o" or 111: oriented; "l" or 108: linear; "a" or 97: aggregate; "g" or 103: graupel; "s" or 115: sphere; "h" or 104: hexagonal; "i" or 105: irregular; "d" or 100: dendrite) [dimensions: time]
 - **area_hole_ratio:** Ratio between the projected area and the area of hole inside particle [dimensions: time]
-- **inter_arrival:** Inter-arrival time between particles (use diff(time_in_seconds) for 2DS/HVPS)[dimensions: time; units: s]
+- **inter_arrival:** Inter-arrival time between particles (use diff(time_in_seconds) for all except 2DC/2DP)[dimensions: time; units: s]
 - **bin_stats:** # times specified photodiode is shadowed for particles in this file [dimensions: diode count]
 - **image_bin_stats:** # times specified photodiode is shadowed for each particle [dimensions: diode count x time]
 

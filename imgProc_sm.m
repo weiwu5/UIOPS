@@ -1,4 +1,4 @@
-function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin)
+function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEllipse, iCalcAllDiodeStats, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  This function is the image processing part of OAP processing using
 %  distributed memory parallisation. The function use one simple interface
@@ -7,14 +7,18 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 %  Interface:
 %    infile   :   The input file name
 %    outfile  :   The output file name
-%    probetype:   One of the following: '2DC','2DP','CIP','PIP','HVPS' and '2DS'
+%    probename:   One of the following: '2DC','2DP','CIP','PIP','HVPS',
+%                 '2DS', and 'Fast2DC'
 %    n        :   The nth chuck to be processed.
 %    nEvery   :   The individual chuck size. nChuck*nEvery shoudl equal the
 %                 total frame number
 %    projectname: The name of project so that you can write the specific
 %                 code for you data
+%    iRectEllipse: 0 - Do not process rectangle/ellipse fit dimensions; 1 - Process this info
+%    iCalcAllDiodeStats: 0 - Do not save diode stats for every particle (large
+%                        files); 1 - Save
 %    varargin :   OPTIONAL argument for the aircraft TAS file name
-%                 (HVPS/2DS proves only)
+%                 (HVPS/2DS probes only)
 %
 %  Note other important variables used in the program
 %    handles:  a structure to store information. It is convinient to use a
@@ -72,72 +76,91 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 %          Removed unnecessary 'else' statement immediately following the
 %          data integrity statement block
 %          Changed netCDF type for overload variable to work with 2DC/2DP
+%    * Updated by Joe Finlon, 12/28/17
+%          Added support for Fast2DC (64 diode array)
+%          Moved iRectEllipse and iCalcAllDiodeStats to input parameters
+%          Added software preamble printed statements
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
-%    use ProbeType to indicate three type of probes:
-%       0: 2DC/2DP, 32 doides, boundary 85,
-%       1: CIP/PIP, 64 doides, boundary 170
-%       2: HVPS/2DS, 128 doides, boundary 170
+%    use ProbeType to indicate four types of probes:
+%       0: 2DC/2DP, 32 diodes, boundary 85,
+%       1: CIP/PIP, 64 diodes, boundary 170
+%       2: HVPS/2DS, 128 diodes, boundary 170
+%       3: Fast2DC, 64 diodes, boundary 170 % Added support for Fast2DC ~ Joe Finlon 12/28
 	
 	
-	iRectEllipse = 0;  % Set defualt to no Rectangle fit and Ellipse fit
+% 	iRectEllipse = 0;  % Set defualt to no Rectangle fit and Ellipse fit
 	
 	% Option to save diode stats for every particle
 	% More than doubles filesize, and increase computation time
 	% Only enable if actually needed
-	calcAllDiodeStats = 0;
-	
+% 	iCalcAllDiodeStats = 0;
+
+fprintf('***********************************************************\n')
+fprintf('* UNIVERSITY OF ILLINOIS/OKLAHOMA OAP PROCESSING SOFTWARE *\n')
+fprintf('*                  Copyright (C) 2018                     *\n')
+fprintf('***********************************************************\n')
+fprintf('* This program is free software: you can redistribute it\n')
+fprintf('* and/or modify it under the terms of the GNU General Public \n')
+fprintf('* License as published by the Free Software Foundation,\n')
+fprintf('* either version 3 of the License, or (at your option) any\n')
+fprintf('* later version.\n\n')
+fprintf('* This program is distributed in the hope that it will be\n')
+fprintf('* useful, but WITHOUT ANY WARRANTY; without even the implied\n')
+fprintf('* warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR\n')
+fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
+
 	switch probename
 		case '2DC'
-			boundary=[255 255 255 255];
-			boundarytime=85;
+			boundary = [255 255 255 255];
+			boundarytime = 85;
 			
 			ds = 0.025;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 32;  % Diode number
 			handles.current_image = 1;
-			probetype=0;
+			probetype = 0;
 			
 		case '2DP'
-			boundary=[255 255 255 255];
-			boundarytime=85;
+			boundary = [255 255 255 255];
+			boundarytime = 85;
 			
 			ds = 0.200;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 32;  % Diode number
 			handles.current_image = 1;
-			probetype=0;
+			probetype = 0;
 			
 		case 'CIP'
-			boundary=[170, 170, 170, 170, 170, 170, 170, 170];
-			boundarytime=NaN;
+			boundary = [170, 170, 170, 170, 170, 170, 170, 170];
+			boundarytime = NaN;
 			
 			ds = 0.025;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 64;  % Diode number
 			handles.current_image = 1;
-			probetype=1;
+			probetype = 1;
 			
 		case 'PIP'
-			boundary=[170, 170, 170, 170, 170, 170, 170, 170];
-			boundarytime=NaN;
+			boundary = [170, 170, 170, 170, 170, 170, 170, 170];
+			boundarytime = NaN;
 			
 			ds = 0.100;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 64;  % Diode number
 			handles.current_image = 1;
-			probetype=1;
+			probetype = 1;
 			
 		case 'HVPS'
-			boundary=[43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
-			boundarytime=0;
+			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
+			boundarytime = 0;
 			
 			ds = 0.150;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 128; % Diode number
 			handles.current_image = 1;
-			probetype=2;
+			probetype = 2;
 			% TAS file info - Added by Joe Finlon - 03/03/17
 			tasFile = varargin{1};
 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
@@ -145,19 +168,29 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 			disp(['Using TAS data from ', tasFile])
 			
 		case '2DS'
-			boundary=[43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
-			boundarytime=0;
+			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
+			boundarytime = 0;
 			
 			ds = 0.010;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 128; % Diode number
 			handles.current_image = 1;
-			probetype=2;
+			probetype = 2;
 			% TAS file info - Added by Joe Finlon - 03/03/17
 			tasFile = varargin{1};
 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
 			disp(['Using TAS data from ', tasFile])
+            
+        case 'Fast2DC' % Added support for Fast2DC ~ Joe Finlon 12/28
+            boundary = [170, 170, 170];
+			boundarytime = NaN;
+			
+			ds = 0.025;			     % Size of diode in millimeters
+			handles.diodesize = ds;
+			handles.diodenum  = 64;  % Diode number
+			handles.current_image = 1;
+			probetype = 3;
 	end
 	
 	diodenum = handles.diodenum;
@@ -188,13 +221,13 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 	netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
 	netcdf.putAtt(f, NC_GLOBAL, 'Image Source', infile);
 	netcdf.putAtt(f, NC_GLOBAL, 'Probe Type', probename);
-	if iRectEllipse && calcAllDiodeStats
+	if iRectEllipse && iCalcAllDiodeStats
 		netcdf.putAtt(f, NC_GLOBAL, 'Optional parameters active',...
 			'Rectangle & elliptical fits & per-particle diode statistics');
-	elseif iRectEllipse && ~calcAllDiodeStats
+	elseif iRectEllipse && ~iCalcAllDiodeStats
 		netcdf.putAtt(f, NC_GLOBAL, 'Optional parameters active',...
 			'Rectangle & elliptical fits');
-	elseif ~iRectEllipse && calcAllDiodeStats
+	elseif ~iRectEllipse && iCalcAllDiodeStats
 		netcdf.putAtt(f, NC_GLOBAL, 'Optional parameters active',...
 			'Per-particle diode statistics');
 	else
@@ -223,10 +256,10 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
     netcdf.putAtt(f, varid102, 'Description', 'Number of slices containing particle')
     
     varid103  = netcdf.defVar(f,'DMT_DOF_SPEC_OVERLOAD','double',dimid0); % Modified variable to handle PMS dead time ~ Joe Finlon 11/06/17
-    netcdf.putAtt(f, varid103, 'Units', 'ms (2DC/2DP only)')
+    netcdf.putAtt(f, varid103, 'Units', 'ms (Fast2DC/2DC/2DP only)')
     netcdf.putAtt(f, varid103, 'Description', 'Unitless flag denoting out-of-focus (DMT) or overloaded (SPEC) particles. Dead time for corresponding image record for PMS probes.')
 	
-	if probetype~=0 % Added by Joe Finlon - 06/22/17
+	if probetype~=0 || probetype~=3 % Added by Joe Finlon - 06/22/17
         varid104  = netcdf.defVar(f,'Particle_number_all','int',dimid0);
 		netcdf.putAtt(f, varid104, 'Units', '--')
 		netcdf.putAtt(f, varid104, 'Description', 'Index of particle in 2-D buffer')
@@ -397,13 +430,13 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 	varid35 = netcdf.defVar(f,'inter_arrival','double',dimid0);
 	netcdf.putAtt(f, varid35, 'Units', 'sec')
 	netcdf.putAtt(f, varid35, 'Description', ['Inter-arrival time between particles ',...
-		'(use diff(time_in_seconds) for 2DS/HVPS)'])
+		'(use diff(time_in_seconds) for all but 2DC/2DP)'])
 	
 	varid36 = netcdf.defVar(f,'bin_stats','int',dimid2);
 	netcdf.putAtt(f, varid36, 'Units', '--')
 	netcdf.putAtt(f, varid36, 'Description', '# times specified photodiode is shadowed for particles in this file')
 	
-	if calcAllDiodeStats
+	if iCalcAllDiodeStats
 		varid37 = netcdf.defVar(f,'image_bin_stats','int',[dimid2 dimid0]);
 		netcdf.putAtt(f, varid37, 'Units', '--')
 		netcdf.putAtt(f, varid37, 'Description', '# times specified photodiode is shadowed for each particle')
@@ -440,7 +473,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		handles.minute   = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'minute'  ),i-1,1);
 		handles.second   = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'second'  ),i-1,1);
 		handles.millisec = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'millisec'),i-1,1);
-        if probetype == 0 % Contains dead time for PMS probes ~ Joe Finlon & Adam Majewski 11/06/17
+        if probetype == 0 || probetype == 3 % Contains dead time for PMS probes ~ Joe Finlon & Adam Majewski 11/06/17
             handles.wkday = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'wkday'),i-1,1);
         end
 		
@@ -451,6 +484,8 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		
 		if probetype==0
 			temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [4,1024,1]);
+        elseif probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28
+            temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [8,512,1]);
 		else
 			temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [8,1700,1]);
 		end
@@ -482,9 +517,10 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 		%c=[dec2bin(data(:,1),8),dec2bin(data(:,2),8),dec2bin(data(:,3),8),dec2bin(data(:,4),8)];
         while data(j,1) ~= -1 && j < size(data,1) && numCrptBnds < 1
 			% Calculate every particles
-            if (isequal(data(j,:), boundary) && ( (isequal(data(j+1,1), boundarytime) || probetype==1) ) )
+%             if (isequal(data(j,:), boundary) && ( (isequal(data(j+1,1), boundarytime) || probetype==1) ) )
+            if (isequal(data(j,1:length(boundary)), boundary) && ( (isequal(data(j+1,1), boundarytime) || probetype==1 || probetype==3) ) )
                 if start == 0
-					if probetype == 0 || probetype == 1
+					if probetype == 0 || probetype == 1 || probetype == 3
 						start = 2;
 					else
 						start = 1;
@@ -514,9 +550,9 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                 %% Create binary image according to probe type
                 
                 if probetype==0
-                    ind_matrix(1:j-start-1,:) = data(start+1:j-1,:);  % 2DC has 3 slices between particles (sync word timing word and end of particle words)
+                    ind_matrix(1:j-start-1,:) = data(start+1:j-1,:);  % 2DC has 3 slices between particles (end of particle, timing word, and sync word)
                     c=[dec2bin(ind_matrix(:,1),8),dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8)];
-                elseif probetype==1
+                elseif probetype==1 || probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28
                     ind_matrix(1:j-start,:) = data(start:j-1,:);
                     c=[dec2bin(ind_matrix(:,1),8), dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8), ...
                         dec2bin(ind_matrix(:,5),8), dec2bin(ind_matrix(:,6),8),dec2bin(ind_matrix(:,7),8),dec2bin(ind_matrix(:,8),8)];
@@ -539,16 +575,29 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                 particle_num(kk) = mod(kk,66536); %hex2dec([dec2hex(data(start-1,7)),dec2hex(data(start-1,8))]);
                 
                 %  Get the particle time
-                if probetype == 0
-                    bin_convert = [dec2bin(data(header_loc,2),8),dec2bin(data(header_loc,3),8),dec2bin(data(header_loc,4),8)];
-                    part_time = bin2dec(bin_convert);       % Interarrival time in tas clock cycles
-                    tas2d = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'tas'),i-1, 1);
-                    part_time = part_time/tas2d*handles.diodesize/(10^3);
-                    time_in_seconds(kk) = part_time;
-                    particle_sliceCount(kk) = size(ind_matrix, 1); % Experimental for 2DC/2DP ~ Added by Adam Majewski 11/06/17
-                    particle_DOF(kk) = handles.wkday; % Particle dead time for corresponding record ~ Joe Finlon 11/06/17
+                if probetype == 0 || probetype == 3
+                    if probetype == 0
+                        bin_convert = [dec2bin(data(header_loc,2),8),dec2bin(data(header_loc,3),8),dec2bin(data(header_loc,4),8)];
+                        part_time = bin2dec(bin_convert);       % particle time in tas clock cycles
+                        tas2d = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'tas'),i-1, 1);
+                        part_time = part_time/tas2d*handles.diodesize/(10^3);
+                        images.int_arrival(kk) = part_time; % time elapsed [s] since the last blank slice was recorded
+                        time_in_seconds(kk) = part_time;
+                    elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28
+                        bin_convert = [dec2bin(data(header_loc-1,4),8),dec2bin(data(header_loc-1,5),8),dec2bin(data(header_loc-1,6),8), ...
+                            dec2bin(data(header_loc-1,7),8),dec2bin(data(header_loc-1,8),8)];
+                        part_time = bin2dec(bin_convert)/12; % particle time in clock cycles (using 12 MHz clock) since power on
+                        part_time = part_time/(10^6); % particle time [s] since power on
+                        time_in_seconds(kk) = part_time;
+                        if kk > 1
+                            images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
+                        else
+                            images.int_arrival(kk) = 0;
+                        end
+                    end
                     
-                    images.int_arrival(kk) = part_time;
+                    particle_sliceCount(kk) = size(ind_matrix, 1); % Experimental for 2DC/2DP ~ Adam Majewski 11/06/17
+                    particle_DOF(kk) = handles.wkday; % Particle dead time for corresponding record ~ Joe Finlon 11/06/17
                     
                     if(firstpart == 1)
                         firstpart = 0;
@@ -560,6 +609,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                         % First, we get the hours....
                         %                             start_msec = start_msec; % Unnecessary code ~ Joe Finlon 11/06/17
                         start_microsec = 0;
+                        
                         time_offset_hr = 0;
                         time_offset_mn = 0;
                         time_offset_sec = 0;
@@ -570,10 +620,15 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                         part_sec(kk) = start_second;
                         part_mil(kk) = start_msec;
                         %                             part_micro(kk) = 0;
-                        part_mil(kk) = start_microsec; % Changed treatment of this variable for consistency ~ Joe Finlon 11/06/17
+                        part_micro(kk) = start_microsec; % Changed treatment of this variable for consistency ~ Joe Finlon 11/06/17
                     else
-                        frac_time = part_time - floor(part_time);
-                        frac_time = frac_time * 1000;
+                        if probetype == 0
+                            frac_time = part_time - floor(part_time);
+                            frac_time = frac_time * 1000; % elapsed time [ms portion] since last particle
+                        elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28
+                            timeDiff = part_time - time_in_seconds(kk-1); % elapsed time [s] since last particle
+                            frac_time = 1000*(timeDiff - floor(timeDiff)); % elapsed time [ms portion] since last particle
+                        end
                         part_micro(kk) = part_micro(kk-1) + (frac_time - floor(frac_time))*1000;
                         part_mil(kk) = part_mil(kk-1) + floor(frac_time);
                         part_sec(kk) = part_sec(kk-1) + floor(part_time);
@@ -657,7 +712,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                     particle_partNum(kk)=double(data(header_loc,5));
                     particle_sliceCount(kk)=double(data(header_loc,6));
                     
-                    part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8));       % Interarrival time in clock cycles
+                    part_time = double(data(header_loc,7))*2^16+double(data(header_loc,8)); % particle time in clock cycles
                     part_micro(kk) = part_time;
                     part_mil(kk)   = 0;
                     part_sec(kk)   = 0;
@@ -740,7 +795,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
                 %% Determine the Particle Habit
                 %  We use the Holroyd algorithm here
                 handles.bits_per_slice = diodenum;
-                if calcAllDiodeStats
+                if iCalcAllDiodeStats
                     images.diode_stats(kk,:) = sum(c=='0',1); % Option to save diode stats for every particle
                 end
                 diode_stats = diode_stats + sum(c=='0',1);
@@ -818,7 +873,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 			netcdf.putVar ( f, varid101, wstart, w-wstart+1, time_in_seconds(:) );
             netcdf.putVar ( f, varid102, wstart, w-wstart+1, particle_sliceCount ); % Used by all probes ~ Joe Finlon 11/06/17
             netcdf.putVar ( f, varid103, wstart, w-wstart+1, particle_DOF ); % Used by all probes ~ Joe Finlon 11/06/17
-			if probetype~=0 % Added by Joe Finlon - 06/22/17
+			if probetype~=0 || probetype~=3 % Added by Joe Finlon - 06/22/17
 				netcdf.putVar ( f, varid104, wstart, w-wstart+1, particle_partNum );
 			end
 			
@@ -867,7 +922,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, varargin
 			netcdf.putVar ( f, varid35, wstart, w-wstart+1, images.int_arrival);
 			netcdf.putVar ( f, varid36, diode_stats );
 			
-			if calcAllDiodeStats
+			if iCalcAllDiodeStats
 				netcdf.putVar ( f, varid37, [0 wstart], [diodenum w-wstart+1], images.diode_stats' ); % Option to save diode stats for every particle
 			end
 			
