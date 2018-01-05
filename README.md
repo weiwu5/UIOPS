@@ -9,7 +9,10 @@ The documentation below contains detailed instructions to run the software, and 
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
 ## What's New
-**December 28, 2018**
+**January 05, 2018**
+- **- read\_binary\_PMS:** Improved image filename creation if a directory is specified in the ‘outfilename’ input argument  
+
+**December 28, 2017**
 - **imgProc\_sm:** Added support for Fast2DC probe (64 diode array)  
 - **imgProc\_sm:** Moved iRectEllipse and iCalcAllDiodeStats to input parameters  
 - **imgProc\_sm:** Added software preamble printed statements  
@@ -56,7 +59,7 @@ The documentation below contains detailed instructions to run the software, and 
 - **ImgView.m:** Code for the ImgView program (no longer supported)
 - **ImgView.fig:** ImgView program (no longer supported)
 - **intArrAnalysis.m:** Determines the inter-arrival time threshold for populations of predefined particle count 
-- **read_binary.m:** Wrapper function for the following probes/platforms
+- **read_binary.m:** Wrapper function for the following probes/platforms  
    **read\_binary\_SPEC.m:** Converts SPEC raw data to netCDF format  
    **read\_binary\_PMS.m:** Converts PMS data to netCDF format  
    **read\_binary\_SEA.m:** Converts SEA raw data to netCDF format  
@@ -152,9 +155,9 @@ Variables outputted from sizeDist are saved with a combination of dimensions: ti
 ## Analyzing Inter-arrival Times
 The _intArrAnalysis_ script fits the inter-arrival times of a population of particles to a bimodal distribution following Field et al. (2006). Thresholds are applied based on (1) the minimum frequency in the (1) fit and (2) histogram between the peaks of both modes.
 
-**intArrAnalysis(** inFilename [string], fileDirectory [string], probeName [string], runAnalysis [num], date [string], numChunks [num], nthDataChunk [optional num] **)**
+**intArrAnalysis(** inFilename [string], fileDirectory [string], probeName [string], runAnalysis [num], date [string], numChunks [num], nthDataChunk [optional num] **)**  
    **inFilename:** File path of PBP data file  
-   **fileDirectory:** Directory path to save data and plots
+   **fileDirectory:** Directory path to save data and plots  
    **probeName:** "2DS", "HVPS", "CIP", "PIP", "2DC", "2DP"  
    **runAnalysis:** 1 runs bimodal fit analysis; 0 only plots histograms of inter-arrival times  
    **date:** Start date of flight [YYYYMMDD]  
@@ -178,7 +181,7 @@ The _sizeDist_ script generates size distributions of number _N_, mass _M_, area
 
 **sizeDist(** inFilename [string], outFilename [string], tas [array], flightTime [array], probeName [string], sizeMethod [num], saMethod [num], pressure [array], temperature [array], iaThreshType [num], createAspectRatio [num], saveBadParticles [num], saveIAandSV [num], projectName [string], date [string], iaThreshFilename [optional string] **)**
    **inFilename:** File path of PBP data file  
-   ** outFilename:** Filename to save size distribution data  
+   **outFilename:** Filename to save size distribution data  
    **tas:** True air speed loaded as an array (e.g., within a helper script) [m/s]  
    **flightTime:** Aircraft time loaded as an array (e.g., within a helper script) [HHMMSS]  
    **probeName:** "2DS", "HVPS", "CIP", "PIP", "2DC", "2DP"  

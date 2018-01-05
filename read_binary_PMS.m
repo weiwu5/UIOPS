@@ -25,6 +25,10 @@ for i = 1:filenums
         outfilename  = ['DIMG.',infilename(1:slashpos-1),'.2dc.cdf']; %(slashpos+1:end)
         outfilename1 = ['DIMG.',infilename(1:slashpos-1),'.f2dc.cdf'];
         outfilename2 = ['DIMG.',infilename(1:slashpos-1),'.2dp.cdf'];
+    else % append probe type and extension to output file path and user-specified file name ~ Joe Finlon 01/05/18
+        outfilename = [outfilename, '.2dc.cdf'];
+        outfilename1 = [outfilename, '.f2dc.cdf'];
+        outfilename2 = [outfilename, '.2dp.cdf'];
     end
     
     fid=fopen(infilename,'r','b');
