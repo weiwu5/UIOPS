@@ -31,7 +31,8 @@ disp(['File: ', infile])
 
 % Read the inter-arrival time data
 ncid=netcdf.open(infile,'nowrite');
-if strcmp(probeName,'2DS') || strcmp(probeName,'HVPS')
+% Added Fast2DC support - Joe Finlon 02/09/18
+if strcmp(probeName(1:3),'2DS') || strcmp(probeName,'HVPS') || strcmp(probeName,'Fast2DC')
 	tempTime=netcdf.getVar(ncid,netcdf.inqVarID(ncid,'Time_in_seconds'));
 	intarr(1) = 0; % sets inter arrival time of first particle equal to 0
 	intarr(2:length(tempTime)) = diff(tempTime); % subtract time between particles
@@ -59,59 +60,6 @@ if length(varargin)==2 % two arguments, # CPUs and the nth chunk to process
     date = date(startInd:endInd);
     int_arr = int_arr(startInd:endInd);
 end
-
-
-% % Plot Contour
-% 
-% bins = logspace(-7, 0, 70);
-% binsCenter=bins(1:end-1)+diff(bins)/2;
-% num_particles = 25000;                  % # of particles to factor into fit
-% n=1;
-% for i=1:num_particles:length(int_arr)    
-%  	  indicies = i:min([i+num_particles-1 length(int_arr)]);
-%   	  arr = int_arr(indicies);
-%   	  [h,edges] = histcounts(arr, bins);
-%       binsCenter=bins(1:end-1)+diff(bins)/2;
-%       hist2dc(n,:) = h;
-%       NEWtime2dc(n)=timehhmmss(i);
-%       NEWdate2dc(n)=date(i);
-%       n=n+1;
-% end
-% 
-% 
-% %%
-% figure;
-% figure('Visible','off');
-% %scatter(hhmmss2insec(time2dc),intarr2dc,'.')
-% hist2d=hist2dc;
-% histsum=sum(hist2d,2);
-% histsum=repmat(histsum,1,69);
-% contourf(time2datenum(NEWdate2dc', NEWtime2dc'),binsCenter,(hist2dc./histsum)',0.005:0.005:0.1,'LineColor','none');
-% colorbar;
-% datetick('x','HH:MM');
-% set(gca,'yscale','log')
-% ylim([1e-7,1])
-% xlabel('Time')
-% ylabel('Inter-arrival Time [sec]')
-% set(gca,'FontSize',20 )
-% set(findall(gcf,'type','text'),'FontSize',20)
-% savefig('2DSIntArrContour_20151201.fig')
-% 
-% % plot the interarrival time in dot scatter
-% figure;
-% figure('Visible','off');
-% n=1;
-% %time=hhmmss2insec(timehhmmss)/3600/24;
-% time = time2datenum(date, timehhmmss);
-% plot(time(1:n:end),intarr(1:n:end),'.','markersize', 0.5); 
-% set(gca,'yscale','log');
-% datetick('x','HH:MM')
-% ylim([1e-7,1])
-% xlabel('Time')
-% ylabel('Inter-arrival Time [sec]')
-% set(gca,'FontSize',20 )
-% set(findall(gcf,'type','text'),'FontSize',20)
-% savefig('2DSIntArrScatter_20151201.fig')
 
 if (ianalysis==0)
     return
@@ -158,6 +106,7 @@ for i=1:num_particles:length(int_arr)
       NEWdate2dc(n) = date(i);
 
       beta0 = [1e-2 1e-6 0.5]; % initial parameter guesses
+      
       [tau_std] = abs(nlinfit(binsCenter,h./sum(h)./width,bimodalfit,beta0,...
           statset('Robust', 'on', 'FunValCheck', 'off', 'MaxIter', 1000)));
       
@@ -216,7 +165,7 @@ for i=1:num_particles:length(int_arr)
         legend({'frequency', 'bin endpoint', 'fit', 'lower peak', 'higher peak',...
             '2*(lower peak)', 'freq. min between peaks from fit', 'freq. min between peaks in hist'},...
             'FontSize', 6, 'Location', 'northwest');
-        print([directory, probeName, 'IntArrHistogram_', num2str(NEWtime2dc(n)), '.',...
+        print([directory, probeName, 'IntArrHistogram_', num2str(NEWtime2dc(n),'%06d'), '.',...
             dateString, '.jpg'],'-djpeg','-r300')
       end
       
@@ -236,7 +185,13 @@ for i=1:num_particles:length(int_arr)
   	  [h,~] = histcounts(arr, bins);
       binsCenter = bins(1:end-1)+diff(bins)/2;
       hist2dc_contour(n,:) = h;
-      NEWtime2dc(n) = timehhmmss(i);
+      % Improved contoured frequency plotting - Joe Finlon 02/09/18
+      if (n>1) && (timehhmmss(i)==NEWtime2dc(n-1)) % need to nudge time for plot to work
+          time_insec = hhmmss2insec(timehhmmss(i))+1; % add 1 second to the contour plot
+          NEWtime2dc(n) = insec2hhmmss(time_insec); % convert back to HHMMSS
+      else
+          NEWtime2dc(n) = timehhmmss(i);
+      end
       NEWdate2dc(n) = date(i);
       n=n+1;
 end
@@ -254,7 +209,8 @@ time = time2datenum(date, timehhmmss);
 
 % ======= Plot the inter-arrival time as a contoured distribution =======
 figure('visible','off'); set(gcf, 'color', 'w');
-contourf(time2datenum(NEWdate2dc', NEWtime2dc'),binsCenter,(hist2dc_contour./histsum)',...
+time_contour = time2datenum(NEWdate2dc', NEWtime2dc'); % gather datetimes for contour plot
+contourf(time_contour,binsCenter,(hist2dc_contour./histsum)',...
     0.005:0.005:0.1,'LineColor','none');
 colormap(jet); colorbar; hold on;
 n=1;
@@ -273,32 +229,7 @@ legend({'frequency', '2*lower peak', 'freq. min between peaks from fit',...
 % savefig([directory, probeName, 'IntArrAnalysis.', dateString, '.fig'])
 print([directory, probeName, 'IntArrAnalysis.', dateString, '.jpg'],'-djpeg','-r300')
 
-% ======= Box plot of inter-arrival times by size =======
-dD = 0.1; % bin width for size categories to partition inter-arrival times [mm]
-binsMid = 0.15:dD:1.25; % particle size categories to partition inter-arrival times [mm]
 
-intArr_copy = int_arr; % copy inter-arrival times for plotting
-intArr_sizes = NaN(1, length(int_arr)); % allocate size category for 
-for iter=1:length(binsMid)
-    intArr_sizes(find((Dmax>=binsMid(iter)-dD/2) & (Dmax<binsMid(iter)+dD/2))) = binsMid(iter);
-end
-
-intArr_copy(find(isnan(intArr_sizes))) = []; % ignore particles outside of size range
-intArr_sizes(find(isnan(intArr_sizes))) = []; % ignore particles outside of size range
-
-figure('visible','off'); set(gcf, 'color', 'w');
-intArr_round = NaN(1,ceil(length(int_arr)/num_particles)); % dummy inter-arrival for box plot grouping
-for i=1:num_particles:length(int_arr)
-    intArr_round(i) = 1000*(ceil(Dmax(i)*10)/10 - 0.05); % round to mid-point of 100 um bin incriments [e.g. 50,150,250]
-end
-
-boxplot(intArr_copy, 1000*intArr_sizes, 'PlotStyle',  'compact');
-ylim([1e-7 1]); set(gca,'YScale','log');
-title(sprintf('Inter-arrival Time by Size for %s',dateString));
-xlabel('Size Bin Midpoint (\mum)'); ylabel('Inter-arrival Time [sec]');
-
-% savefig([directory, probeName, 'IntArrSizes.', dateString, '.fig'])
-print([directory, probeName, 'IntArrSizes.', dateString, '.jpg'],'-djpeg','-r300')
 
 %% Save the Data
 
@@ -309,9 +240,11 @@ save([directory, probeName, 'IntArrAnalysis.', dateString, '.mat'])
 
 % Save only threshold information for sizeDist.m script (may need manual
 % intervention if fitting technique is not robust
-f = netcdf.create([directory, 'intArrThreshold_', dateString, '.cdf'], 'clobber');
+f = netcdf.create([directory, probeName, '_intArrThreshold_', dateString, '.cdf'], 'clobber');
 
 dimid0 = netcdf.defDim(f,'particleTime',length(time));
+dimid1 = netcdf.defDim(f,'contourTime',length(time_contour));
+dimid2 = netcdf.defDim(f,'intArrBins',length(binsCenter));
 
 NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
 netcdf.putAtt(f, NC_GLOBAL, 'Software', 'UIOPS/IntArrAnalysis_revised');
@@ -329,14 +262,35 @@ varid0 = netcdf.defVar(f,'particle_time','double',dimid0);
 netcdf.putAtt(f, varid0,'units','HHMMSS');
 netcdf.putAtt(f, varid0,'name','Time');
 
-varid1 = netcdf.defVar(f,'threshold','double',dimid0); 
-netcdf.putAtt(f, varid1,'units','sec');
-netcdf.putAtt(f, varid1,'name','Inter-arrival time threshold in n-particle blocks');
+varid1 = netcdf.defVar(f,'particle_datetime','double',dimid0);
+netcdf.putAtt(f, varid1,'units','MATLAB datetime');
+netcdf.putAtt(f, varid1,'name','MATLAB datetime object for each particle');
+
+varid2 = netcdf.defVar(f,'threshold','double',dimid0); 
+netcdf.putAtt(f, varid2,'units','sec');
+netcdf.putAtt(f, varid2,'name','Inter-arrival time threshold in n-particle blocks');
+
+varid3 = netcdf.defVar(f,'contour_time','double',dimid1);
+netcdf.putAtt(f, varid3,'units','MATLAB datetime');
+netcdf.putAtt(f, varid3,'name',['MATLAB datetime object for start of each ',...
+    num2str(num_particles),'-particle distribution']);
+
+varid4 = netcdf.defVar(f,'intArr_bins','double',dimid2);
+netcdf.putAtt(f, varid4,'units','sec');
+netcdf.putAtt(f, varid4,'name','Midpoint of inter-arrival time bin');
+
+varid5 = netcdf.defVar(f,'intArr_frequency','double',[dimid2 dimid1]);
+netcdf.putAtt(f, varid5,'units','#/1');
+netcdf.putAtt(f, varid5,'name','Normalized frequency of inter-arrival time for each particle block.');
 
 netcdf.endDef(f)
 
 netcdf.putVar ( f, varid0, timehhmmss );
-netcdf.putVar ( f, varid1, threshhold_ak );
+netcdf.putVar ( f, varid1, time );
+netcdf.putVar ( f, varid2, threshhold_ak );
+netcdf.putVar ( f, varid3, time_contour );
+netcdf.putVar ( f, varid4, binsCenter );
+netcdf.putVar ( f, varid5, (hist2dc_contour./histsum)' );
 
 netcdf.close(f) % Close output NETCDF file
 

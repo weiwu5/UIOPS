@@ -45,6 +45,10 @@
 %   input arguemnts. Also moved toggles for saving additional data to input
 %   arguments.
 %           Joe Finlon, 11/17/17
+%   * Added support for SOCRATES. Also improved inter-arrival time treatment for Fast2DC.
+%	  Improvements to handling particle reacceptence at the end of flight.
+%	  Particle time improvements when the flight spans multiple days.
+%           Joe Finlon, 02/09/17
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -157,12 +161,12 @@ switch projectname
 				[startT, endT, ~, ~, intar_threshold_spirals] = getPECANparams(ddate, probename);
 				
 				intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
-				for ix = 1:length(tas_time)
-					for iz = 1:length(startT)
-						if (tas_time(ix) >= startT(iz) && tas_time(ix) < endT(iz))
+                for ix = 1:length(tas_time)
+                    for iz = 1:length(startT)
+                        if (tas_time(ix) >= startT(iz) && tas_time(ix) < endT(iz))
 							intar_threshold(ix) = intar_threshold_spirals(iz);
-						end
-					end
+                        end
+                    end
                 end
         end
         
@@ -248,6 +252,84 @@ switch projectname
 				reaccptShatrs = 0;
 					reaccptD = 0.5; 
 					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
+                
+        end
+        
+    case 'SOCRATES'
+        switch probename
+            case '2DS'
+                num_diodes = 128;
+                diodesize = .010;
+                armdst = 63.;
+%                 num_bins = 128;
+%                 kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins = 21;
+                kk = [50.0 75.0 100.0 125.0 150.0 200.0 250.0 300.0 350.0 400.0 475.0 550.0 625.0 ...
+                    700.0 800.0 900.0 1000.0 1200.0 1400.0 1600.0 1800.0 2000.0]/1000;
+                probetype = 2;
+                tasMax = 170;
+                
+                % Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
+				% **Values here may not be correct** 
+				% The interarrival threshold can be modifided to change second-by-second if desired
+                applyIntArrThresh = 1;
+					defaultIntArrThresh = 1e-6;
+				reaccptShatrs = 1;
+					reaccptD = 0.05; % min size (50 um) to consider in reacceptance
+                    reaccptMaxIA = 1e-6; % max inter-arrival time to consider in reacceptance
+                    
+                intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
+                    
+            case 'Fast2DC'
+                % For the Fast2DC
+                num_diodes = 64;
+                diodesize = .025;
+                armdst = 61.; %60;
+%                 num_bins = 64;
+%                 kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins = 17;
+                kk = [150.0 200.0 250.0 300.0 350.0 400.0 475.0 550.0 625.0 ...
+                    700.0 800.0 900.0 1000.0 1200.0 1400.0 1600.0 1800.0 2000.0]/1000;
+                probetype = 3;
+                tasMax = 300; % Using 12 MHz clock ~ Added by Joe Finlon - 01/09/17
+				
+				% Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
+				% **Values here may not be correct** 
+				% The interarrival threshold can be modifided to change second-by-second if desired
+                applyIntArrThresh = 1;
+					defaultIntArrThresh = 4e-6;
+				reaccptShatrs = 1;
+					reaccptD = 0.15; % min size (150 um) to consider in reacceptance
+					reaccptMaxIA = 2.5e-6; % max inter-arrival time to consider in reacceptance
+                
+				intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
+                                               
+            case 'PIP'
+                num_diodes = 64;
+                diodesize = .1; %units of mm
+                armdst = 260.;
+%                 num_bins = 64;
+%                 kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins = 27;
+%                 kk = [50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
+%                     700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]*4/1000;
+                kk = [150.0 200.0 250.0 300.0 350.0 400.0 475.0 550.0 625.0 ...
+                    700.0 800.0 900.0 1000.0 1200.0 1400.0 1600.0 1800.0 2000.0 ...
+                    2400.0 2800.0 3200.0 3600.0 4000.0 4800.0 5600.0 6400.0 ...
+                    7200.0 8000.0]/1000;
+                probetype = 1;
+                tasMax = 200; 
+                
+				% Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
+				% **Values here may not be correct** 
+				% The interarrival threshold can be modifided to change second-by-second if desired
+                applyIntArrThresh = 0;
+					defaultIntArrThresh = 1e-5;
+				reaccptShatrs = 0;
+					reaccptD = 0.5; 
+					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
+                
+				intar_threshold = ones(size(tas_time))*defaultIntArrThresh;
                 
         end
         
@@ -410,7 +492,8 @@ switch projectname
                 num_bins=19;
                 kk=[50.0   100.0   150.0   200.0   250.0   300.0   350.0   400.0   475.0   550.0   625.0 ...
                     700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000;
-                probetype=0;
+                probetype = 3;
+                tasMax = 300; % Using 12 MHz clock ~ Added by Joe Finlon - 01/09/17
 				
 				% Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
 				% **Values here may not be correct** 
@@ -572,6 +655,12 @@ disp('Performing time correction.') % Joe Finlon
 image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end)=...
     image_time_hhmmssall(find(diff(image_time_hhmmssall)<0)+1:end) + 240000;
 
+% Fix particle times if they do not span multiple days but the flight file
+% does - Added by Joe Finlon - 02/09/18
+if (numel(find(timehhmmss>240000))>0) && (numel(find(image_time_hhmmssall>240000))==0)
+    image_time_hhmmssall(1:end) = image_time_hhmmssall(1:end) + 240000;
+end
+
 % Find all indices (true/1) with a unique time in hhmmss - in other words, we're getting the particle index where each new
 % one-second period starts
 startindex=[true;(diff(hhmmss2insec(image_time_hhmmssall))>0)]; % & diff(hhmmss2insec(image_time_hhmmssall))<5)]; % Simplified (tested/changed by DS)
@@ -680,7 +769,7 @@ for i=1:length(tas)
         im_length = netcdf.getVar(f,netcdf.inqVarID(f,'image_length'),start,count);
         area = netcdf.getVar(f,netcdf.inqVarID(f,'image_area'),start,count);
         perimeter = netcdf.getVar(f,netcdf.inqVarID(f,'image_perimeter'),start,count);
-        if probetype == 0
+        if (probetype == 0) || (probetype == 3) % Added support for Fast2DC ~ Joe Finlon 02/09/18
             rec_nums = netcdf.getVar(f,netcdf.inqVarID(f,'parent_rec_num'),start,count); % For use later w/ 2DC/2DP overload ~ Joe Finlon & Adam Majewski 11/06/17
         end
 %         top_edges = netcdf.getVar(f,netcdf.inqVarID(f,'image_max_top_edge_touching'),start,count); %Unused
@@ -696,11 +785,13 @@ for i=1:length(tas)
 
         Time_in_seconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count);
         DMT_DOF_SPEC_OVERLOAD = netcdf.getVar(f,netcdf.inqVarID(f,'DMT_DOF_SPEC_OVERLOAD'),start,count); % Now includes all probes ~ Joe Finlon 11/06/17
-        if (probetype==0) && (sum(DMT_DOF_SPEC_OVERLOAD)==length(DMT_DOF_SPEC_OVERLOAD)) % Indicates 2DC/2DP data from SEA convention ~ Joe Finlon 11/06/17
+        % Indicates 2DC/2DP data from SEA convention ~ Joe Finlon 11/06/17
+        if ((probetype==0) || (probetype==3)) && (sum(DMT_DOF_SPEC_OVERLOAD)==length(DMT_DOF_SPEC_OVERLOAD)) % Added support for Fast2DC ~ Joe Finlon 02/09/18
             DMT_DOF_SPEC_OVERLOAD = 0.*DMT_DOF_SPEC_OVERLOAD; % Alter variable since overload can't be treated using SEA convention
         end
 %         SliceCount = netcdf.getVar(f,netcdf.inqVarID(f,'SliceCount'),start,count); %Unused
-        if probetype~=0 % skip reading variables if 2DC/2DP - Joe Finlon - 06/26/17
+        % skip reading variables if 2DC/Fast2DC/2DP - Joe Finlon - 06/26/17
+        if (probetype~=0) && (probetype~=3) % Added support for Fast2DC ~ Joe Finlon 02/09/18
             Particle_count = netcdf.getVar(f,netcdf.inqVarID(f,'Particle_number_all'),start,count);
             TotalPC1(i)=length(Particle_count);        
             TotalPC2(i)=Particle_count(end)-Particle_count(1);
@@ -739,10 +830,14 @@ for i=1:length(tas)
 				if start ~= start_all(end)
 					Time_in_seconds4 = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count+1);
 					int_arr3 = diff(Time_in_seconds4);  
-				else
-					Time_in_seconds4 = Time_in_seconds;
-					int_arr3 = diff(Time_in_seconds4);  
-					int_arr3 = [int_arr3;int_arr3(end)];
+                else
+                    Time_in_seconds4 = Time_in_seconds;
+                    if length(Time_in_seconds4)>1
+                        int_arr3 = diff(Time_in_seconds4);
+                        int_arr3 = [int_arr3;int_arr3(end)];
+                    else % address rare occurrance where only 1 particle in last unique time ~ Joe Finlon 02/09/18
+                        int_arr3 = 0;
+                    end
 				end
 				int_arr3(int_arr3<0)=0;
 			end
@@ -837,11 +932,19 @@ for i=1:length(tas)
         end
         %}
 %         if probetype==0 % skip reading variable if 2DC/2DP - Joe Finlon - 06/26/17
-        if probetype==0 % handle 2DC/2DP overloading ~ Joe Finlon & Adam Majewski 11/06/17
+        % handle 2DC/2DP overloading ~ Joe Finlon & Adam Majewski 11/06/17
+        if (probetype==0) || (probetype==3) % Added support for Fast2DC ~ Joe Finlon 02/09/18
             rec_start = diff(rec_nums)>0; % find first particle of each record in current time interval
             time_interval72(i) = sum(DMT_DOF_SPEC_OVERLOAD(rec_start))/1000.; % total overload time for the current time period [sec]
         else
             time_interval72(i) = sum(int_arr(DMT_DOF_SPEC_OVERLOAD~=0));
+            % EXPERIMENTAL correction for 2DS/HVPS if overload sum exceeds 1 sec ~
+            % Joe Finlon 02/09/18
+            if (probetype==2) && (time_interval72(i)>1)
+                fprintf(2, 'Sum of overloaded particles at index %d (%.2f sec) exceeds 1 sec. Resetting to 0.\n\n', ...
+                    i, time_interval72(i));
+                time_interval72(i) = 0;
+            end
         end
         
         % Simplified by DS - Removed image_time_hhmmssnew as it was defined by and never changed from image_time_hhmmss
@@ -1602,7 +1705,7 @@ elseif probetype==1
 	% and number of particles counted by the probe (TotalPC2).
     time_interval199=(TotalPC1./TotalPC2)';
 
-elseif 0==probetype
+elseif (0==probetype) || (3==probetype) % Added support for Fast2DC ~ Joe Finlon 02/09/18
     time_interval200=1-time_interval72';
 end
 
@@ -2036,6 +2139,6 @@ end
 
 netcdf.close(mainf) % Close output NETCDF file 
 
-fprintf('sizeDist_Paris.m script completed %s\n',datestr(now));
+fprintf('sizeDist script completed %s\n',datestr(now));
 
 end

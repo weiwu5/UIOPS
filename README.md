@@ -9,8 +9,22 @@ The documentation below contains detailed instructions to run the software, and 
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
 ## What's New
+**February 09, 2018**
+- **read\_binary\_PMS:** Changed netCDF data types to save space and improve write times  
+- **read\_binary\_PMS:** Fixed rare instance where data was not saved to file  
+- **read\_binary\_DMT:** Changed netCDF data types to save space and improve write times  
+- **imgProc\_sm:** Minor corrections to Fast2DC implementation from previous update  
+- **imgProc\_sm:** Addresses handling of 2DS clock time when the TAS is a NaN value  
+- **IntArrAnalysis:** Added support for the Fast2DC probe  
+- **IntArrAnalysis:** Improved filename conventions for 2DS H and V channels  
+- **IntArrAnalysis:** Improved handling of time for 2D histogram plots  
+- **sizeDist:** Added support for the max TAS values w/ Fast2DC  
+- **sizeDist:** Added support for SOCRATES defaults; improved handling of inter-arrival times for Fast2DC  
+- **sizeDist:** Addresses rare issue w/ particle reacceptance at very end of flight  
+- **sizeDist:** Addresses issue where a flight data file spans multiple days but sampled particles do not  
+
 **January 05, 2018**
-- **- read\_binary\_PMS:** Improved image filename creation if a directory is specified in the ‘outfilename’ input argument  
+- **read\_binary\_PMS:** Improved image filename creation if a directory is specified in the ‘outfilename’ input argument  
 
 **December 28, 2017**
 - **imgProc\_sm:** Added support for Fast2DC probe (64 diode array)  

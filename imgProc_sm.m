@@ -80,6 +80,9 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %          Added support for Fast2DC (64 diode array)
 %          Moved iRectEllipse and iCalcAllDiodeStats to input parameters
 %          Added software preamble printed statements
+%	 * Updated by Joe Finlon, 02/09/18
+%		   Minor corrections to Fast2DC implementation from previous update
+%		   Addresses handling of 2DS clock time when the TAS is a NaN value
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -182,7 +185,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
 			disp(['Using TAS data from ', tasFile])
             
-        case 'Fast2DC' % Added support for Fast2DC ~ Joe Finlon 12/28
+        case 'Fast2DC' % Added support for Fast2DC ~ Joe Finlon 12/28/17
             boundary = [170, 170, 170];
 			boundarytime = NaN;
 			
@@ -476,7 +479,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
         if probetype == 0 || probetype == 3 % Contains dead time for PMS probes ~ Joe Finlon & Adam Majewski 11/06/17
             handles.wkday = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'wkday'),i-1,1);
         end
-		
+        
 		if mod(i,100) == 0
 			disp([num2str(i),'/',num2str(handles.img_count), ', ',datestr(now)])
 		end
@@ -484,7 +487,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		
 		if probetype==0
 			temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [4,1024,1]);
-        elseif probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28
+        elseif probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28/17
             temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [8,512,1]);
 		else
 			temp = netcdf.getVar(handles.f,varid,[0, 0, i-1], [8,1700,1]);
@@ -552,7 +555,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                 if probetype==0
                     ind_matrix(1:j-start-1,:) = data(start+1:j-1,:);  % 2DC has 3 slices between particles (end of particle, timing word, and sync word)
                     c=[dec2bin(ind_matrix(:,1),8),dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8)];
-                elseif probetype==1 || probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28
+                elseif probetype==1 || probetype==3 % Added support for Fast2DC ~ Joe Finlon 12/28/17
                     ind_matrix(1:j-start,:) = data(start:j-1,:);
                     c=[dec2bin(ind_matrix(:,1),8), dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8), ...
                         dec2bin(ind_matrix(:,5),8), dec2bin(ind_matrix(:,6),8),dec2bin(ind_matrix(:,7),8),dec2bin(ind_matrix(:,8),8)];
@@ -583,7 +586,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                         part_time = part_time/tas2d*handles.diodesize/(10^3);
                         images.int_arrival(kk) = part_time; % time elapsed [s] since the last blank slice was recorded
                         time_in_seconds(kk) = part_time;
-                    elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28
+                    elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28/17
                         bin_convert = [dec2bin(data(header_loc-1,4),8),dec2bin(data(header_loc-1,5),8),dec2bin(data(header_loc-1,6),8), ...
                             dec2bin(data(header_loc-1,7),8),dec2bin(data(header_loc-1,8),8)];
                         part_time = bin2dec(bin_convert)/12; % particle time in clock cycles (using 12 MHz clock) since power on
@@ -625,7 +628,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                         if probetype == 0
                             frac_time = part_time - floor(part_time);
                             frac_time = frac_time * 1000; % elapsed time [ms portion] since last particle
-                        elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28
+                        elseif probetype == 3 % Added support for Fast2DC ~ Joe Finlon 12/28/17
                             timeDiff = part_time - time_in_seconds(kk-1); % elapsed time [s] since last particle
                             frac_time = 1000*(timeDiff - floor(timeDiff)); % elapsed time [ms portion] since last particle
                         end
@@ -725,7 +728,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                     tas2d = tas(tasTime==tempTime); % get TAS for corresponding time period
                     
                     if exist('part_time_prev', 'var')
-                        if isempty(tas2d) % use when no TAS data is available for current time
+                        if (isempty(tas2d)) || (isnan(tas2d)) % use when no TAS data (or NaN - Joe Finlon 02/09/18) is available for current time
                             % compute time difference (sec) between
                             % particles to determine whether corrections
                             % are needed (see 'indexRollback' in
@@ -771,6 +774,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                     end
                     
                     part_time_prev = part_time; % assign the clock cycle for use in next iteration
+                    
                     time_in_seconds_prev = time_in_seconds(kk);
                     % -----------------------------------------------------
                 end
@@ -873,7 +877,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			netcdf.putVar ( f, varid101, wstart, w-wstart+1, time_in_seconds(:) );
             netcdf.putVar ( f, varid102, wstart, w-wstart+1, particle_sliceCount ); % Used by all probes ~ Joe Finlon 11/06/17
             netcdf.putVar ( f, varid103, wstart, w-wstart+1, particle_DOF ); % Used by all probes ~ Joe Finlon 11/06/17
-			if probetype~=0 || probetype~=3 % Added by Joe Finlon - 06/22/17
+			if probetype~=0 && probetype~=3 % Added by Joe Finlon - 06/22/17
 				netcdf.putVar ( f, varid104, wstart, w-wstart+1, particle_partNum );
 			end
 			

@@ -31,15 +31,16 @@ for i = 1:filenums
     dimid1 = netcdf.defDim(f,'ImgRowlen',8);
     dimid2 = netcdf.defDim(f,'ImgBlocklen',1700);
     
-    varid0 = netcdf.defVar(f,'year','double',dimid0);
-    varid1 = netcdf.defVar(f,'month','double',dimid0);
-    varid2 = netcdf.defVar(f,'day','double',dimid0);
-    varid3 = netcdf.defVar(f,'hour','double',dimid0);
-    varid4 = netcdf.defVar(f,'minute','double',dimid0);
-    varid5 = netcdf.defVar(f,'second','double',dimid0);
-    varid6 = netcdf.defVar(f,'millisec','double',dimid0);
-    varid7 = netcdf.defVar(f,'wkday','double',dimid0);
-    varid8 = netcdf.defVar(f,'data','double',[dimid1 dimid2 dimid0]);
+    % changed data types to reduce file footprint ~ Joe Finlon 02/09/18
+    varid0 = netcdf.defVar(f,'year','short',dimid0);
+    varid1 = netcdf.defVar(f,'month','byte',dimid0);
+    varid2 = netcdf.defVar(f,'day','byte',dimid0);
+    varid3 = netcdf.defVar(f,'hour','byte',dimid0);
+    varid4 = netcdf.defVar(f,'minute','byte',dimid0);
+    varid5 = netcdf.defVar(f,'second','byte',dimid0);
+    varid6 = netcdf.defVar(f,'millisec','short',dimid0);
+    varid7 = netcdf.defVar(f,'wkday','short',dimid0);
+    varid8 = netcdf.defVar(f,'data','int',[dimid1 dimid2 dimid0]);
     netcdf.endDef(f)
     
 %     f = netcdf(outfilename,'clobber');
@@ -112,10 +113,11 @@ for i = 1:filenums
                 %             i=i+1;
             elseif b1(1) == '0' & b1(2) == '0'
                 %            b2=bin2dec(b1(4:8));
-                for k=1:b2(curi)+1;
+                for k=1:b2(curi)+1
                     if i < length(bytes)
                         decomp(ii,:)=bytes(i,:);
-                    else break
+                    else
+                        break
                     end
                     ii=ii+1;
                     i=i+1;
@@ -133,7 +135,7 @@ for i = 1:filenums
                     ii=ii+1;
                 end
             else
-                kk
+                kk;
             end
         end
         
@@ -155,8 +157,43 @@ for i = 1:filenums
             end
             i=i+1;
             
-        end        
+        end
         
+        % Find timing word and end of particle indices in uncompressed
+        % buffer
+        ind_start = []; ind_end = [];
+        i=1;
+        count=0;
+        while i<length(decomp)
+            if decomp(i)=='AA'
+                count = count + 1;
+            else
+                count = 0;
+                ind_end_temp = i;
+            end
+
+            if count == 8
+                ind_start = [ind_start i+1];
+                ind_end = [ind_end ind_end_temp];
+            end
+            i = i + 1;
+        end
+        ind_start = ind_start(1:end-1); ind_end = ind_end(2:end);
+        
+        % Detect out-of-sync particle boundaries and fix accordingly
+        prtSlc_rem = mod(ind_end-ind_start+1,8);
+        for i=1:length(ind_start)
+            if prtSlc_rem(i)>0 % incomplete slice detected
+                for k=1:8-prtSlc_rem(i)
+                    decomp2 = decomp(1:ind_end(i),:);
+                    decomp2(ind_end(i)+1,:) = 'FF';
+                    decomp2(length(decomp2)+1:length(decomp2)+length(decomp(ind_end(i)+1:end,:)),:) = decomp(ind_end(i)+1:end,:);
+                    ind_start(i+1:end) = ind_start(i+1:end) + 1;
+                    ind_end(i:end) = ind_end(i:end) + 1;
+                    decomp = decomp2;
+                end
+            end
+        end
         %
         %     decomp_convert=[hex2dec(decomp(dd,:)),hex2dec(decomp(dd+1,:)),hex2dec(decomp(dd+2,:)),hex2dec(decomp(dd+3,:)),...
         %         hex2dec(decomp(dd+4,:)),hex2dec(decomp(dd+5,:)),hex2dec(decomp(dd+6,:)),hex2dec(decomp(dd+7,:))];
