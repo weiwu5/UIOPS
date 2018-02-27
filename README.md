@@ -9,6 +9,9 @@ The documentation below contains detailed instructions to run the software, and 
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
 ## What's New
+**February 26, 2018**
+- **sizeDist:** Added support for adjusting the TAS when NaN values are encountered  
+
 **February 09, 2018**
 - **read\_binary\_PMS:** Changed netCDF data types to save space and improve write times  
 - **read\_binary\_PMS:** Fixed rare instance where data was not saved to file  

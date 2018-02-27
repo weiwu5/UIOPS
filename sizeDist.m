@@ -49,6 +49,8 @@
 %	  Improvements to handling particle reacceptence at the end of flight.
 %	  Particle time improvements when the flight spans multiple days.
 %           Joe Finlon, 02/09/17
+%   * Added support for correcting the TAS when NaN values are encountered.
+%           Joe Finlon, 02/26/18
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -1723,6 +1725,22 @@ if probetype==1
         ' was set to 1 in these cases. See TotalPCerrIx variable for indices of occurence.\n\n'],...
         length(TotalPCerrIx)); % moved inside if statement - Joe Finlon - 03/03/17
 end
+
+% Correct NaN TAS values where appropriate (rare issue) ~ Joe Finlon 02/26/18
+nanTAS_count = 0;
+for i=1:length(tas)
+    if isnan(tas(i))
+        nanTAS_count = nanTAS_count + 1;
+        tasTemp = tas(1:i-1); tasTemp(isnan(tasTemp)) = []; % gather all previous valid TAS values
+        if isempty(tasTemp) % still haven't found a valid TAS value in the flight
+            tas(i) = 100; % EXPERIMENTAL -- nominal TAS based on typical flight speed
+        else
+            tas(i) = tasTemp(end); % use last known TAS to estimate the SV
+        end
+    end
+end
+fprintf(['Found %d instances where the TAS values were NaN\n',...
+    'and needed to be adjusted.\n\n'],nanTAS_count)
 
 for j=1:num_bins
     % Sample volume is in m-3
