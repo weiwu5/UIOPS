@@ -159,41 +159,6 @@ for i = 1:filenums
             
         end
         
-        % Find timing word and end of particle indices in uncompressed
-        % buffer
-        ind_start = []; ind_end = [];
-        i=1;
-        count=0;
-        while i<length(decomp)
-            if decomp(i)=='AA'
-                count = count + 1;
-            else
-                count = 0;
-                ind_end_temp = i;
-            end
-
-            if count == 8
-                ind_start = [ind_start i+1];
-                ind_end = [ind_end ind_end_temp];
-            end
-            i = i + 1;
-        end
-        ind_start = ind_start(1:end-1); ind_end = ind_end(2:end);
-        
-        % Detect out-of-sync particle boundaries and fix accordingly
-        prtSlc_rem = mod(ind_end-ind_start+1,8);
-        for i=1:length(ind_start)
-            if prtSlc_rem(i)>0 % incomplete slice detected
-                for k=1:8-prtSlc_rem(i)
-                    decomp2 = decomp(1:ind_end(i),:);
-                    decomp2(ind_end(i)+1,:) = 'FF';
-                    decomp2(length(decomp2)+1:length(decomp2)+length(decomp(ind_end(i)+1:end,:)),:) = decomp(ind_end(i)+1:end,:);
-                    ind_start(i+1:end) = ind_start(i+1:end) + 1;
-                    ind_end(i:end) = ind_end(i:end) + 1;
-                    decomp = decomp2;
-                end
-            end
-        end
         %
         %     decomp_convert=[hex2dec(decomp(dd,:)),hex2dec(decomp(dd+1,:)),hex2dec(decomp(dd+2,:)),hex2dec(decomp(dd+3,:)),...
         %         hex2dec(decomp(dd+4,:)),hex2dec(decomp(dd+5,:)),hex2dec(decomp(dd+6,:)),hex2dec(decomp(dd+7,:))];
