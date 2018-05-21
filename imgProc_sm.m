@@ -503,10 +503,9 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		% May be PECAN-specific, but should be tested with other DMT probe data - Added by Dan Stechman 8/1/17
 		if strcmp(projectname, 'PECAN') % Changed condition to be project-specific rather than probe-specific ~ Joe Finlon 11/09/17
 			tempMmbr = ismember(data,boundary);
-			goodBnd = [1,1,1,1,1,1,1,1];
-			crptBnd = [0,1,1,1,1,1,1,1];
-			numCrptBnds = length(find(ismember(tempMmbr,crptBnd,'rows')));
-			numGoodBnds = length(find(ismember(tempMmbr,goodBnd,'rows')));
+			memberSum = sum(tempMmbr,2);
+			numCrptBnds = length(find(memberSum > 4 & memberSum < 8));
+			numGoodBnds = length(find(memberSum == 8));
 
             if numCrptBnds > 0
 				fprintf('%d/%d boundaries in record %d are corrupt.\n',numCrptBnds,numGoodBnds+numCrptBnds,i);
@@ -939,7 +938,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		
 	end
 	
-	if probetype == 1
+	if strcmp(projectname, 'PECAN')
 		slicesInChunk = length(((n-1)*nEvery+1):min(n*nEvery,handles.img_count));
 		fprintf('Chunk %d complete -- %d/%d records were likely corrupt (%.4f%%) --> %d potential particles ignored.\n',n,crptRecCount,...
 			slicesInChunk,(crptRecCount/slicesInChunk),crptPartCount);

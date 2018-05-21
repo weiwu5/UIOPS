@@ -1932,7 +1932,7 @@ netcdf.putAtt(mainf, varid11,'long_name','Size Distribution with Habit');
 netcdf.putAtt(mainf, varid11,'short_name','habit SD');
 
 varid12 = netcdf.defVar(mainf,'re','double',dimid2); 
-netcdf.putAtt(mainf, varid12,'units','mm');
+netcdf.putAtt(mainf, varid12,'units','um');
 netcdf.putAtt(mainf, varid12,'long_name','effective radius');
 netcdf.putAtt(mainf, varid12,'short_name','Re');
 
@@ -2028,7 +2028,7 @@ netcdf.putAtt(mainf, varid31,'long_name','Size Distribution with Habit of reject
 netcdf.putAtt(mainf, varid31,'short_name','habit SD rejected');
 
 varid32 = netcdf.defVar(mainf,'REJ_re','double',dimid2); 
-netcdf.putAtt(mainf, varid32,'units','mm');
+netcdf.putAtt(mainf, varid32,'units','um');
 netcdf.putAtt(mainf, varid32,'long_name','effective radius of rejected particles');
 netcdf.putAtt(mainf, varid32,'short_name','Re_rejected');
 
