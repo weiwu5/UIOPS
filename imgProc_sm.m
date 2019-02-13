@@ -83,6 +83,12 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %	 * Updated by Joe Finlon, 02/09/18
 %		   Minor corrections to Fast2DC implementation from previous update
 %		   Addresses handling of 2DS clock time when the TAS is a NaN value
+%    * Updated by Joe Finlon, 02/13/19
+%          Compression of netCDF file variables
+%          Added GCPEx-specific CIP time offset correction for many flights
+%          GCPEx CIP corrupt record identification/removal now the default
+%          Added computation of inter-arrival time for first particle in
+%          each CIP/PIP buffer
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -210,7 +216,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	
 	
 	%% Create output NETCDF file and variables
-	f = netcdf.create(outfile, 'clobber');
+	f = netcdf.create(outfile, 'NETCDF4'); % netCDF-4/HDF5 compression support - Added by Joe Finlon 02/13/19
 	dimid0 = netcdf.defDim(f,'time',netcdf.getConstant('NC_UNLIMITED'));
 	dimid1 = netcdf.defDim(f,'pos_count',2);
 	dimid2 = netcdf.defDim(f,'bin_count',diodenum);
@@ -241,84 +247,104 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	varid1 = netcdf.defVar(f,'Date','int',dimid0);
 	netcdf.putAtt(f, varid1, 'Units', 'YYYYMMDD')
 	netcdf.putAtt(f, varid1, 'Description', 'Date of image record in which the particle resides')
+    netcdf.defVarDeflate(f, varid1, true, true, 9);
 	
 	varid0  = netcdf.defVar(f,'Time','int',dimid0);
 	netcdf.putAtt(f, varid0, 'Units', 'HHMMSS')
 	netcdf.putAtt(f, varid0, 'Description', 'Time (UTC) of image record in which the particle resides')
+    netcdf.defVarDeflate(f, varid0, true, true, 9);
 	
 	varid2  = netcdf.defVar(f,'msec','short',dimid0);
 	netcdf.putAtt(f, varid2, 'Units', 'ms')
 	netcdf.putAtt(f, varid2, 'Description', 'Sub-second time of image record in which the particle resides')
+    netcdf.defVarDeflate(f, varid2, true, true, 9);
 	
 	varid101  = netcdf.defVar(f,'Time_in_seconds','double',dimid0);
 	netcdf.putAtt(f, varid101, 'Units', 'sec')
 	netcdf.putAtt(f, varid101, 'Description', 'Time since probe was activated')
+    netcdf.defVarDeflate(f, varid101, true, true, 9);
     
     varid102  = netcdf.defVar(f,'SliceCount','short',dimid0);
     netcdf.putAtt(f, varid102, 'Units', '--')
     netcdf.putAtt(f, varid102, 'Description', 'Number of slices containing particle')
+    netcdf.defVarDeflate(f, varid102, true, true, 9);
     
     varid103  = netcdf.defVar(f,'DMT_DOF_SPEC_OVERLOAD','double',dimid0); % Modified variable to handle PMS dead time ~ Joe Finlon 11/06/17
     netcdf.putAtt(f, varid103, 'Units', 'ms (Fast2DC/2DC/2DP only)')
     netcdf.putAtt(f, varid103, 'Description', 'Unitless flag denoting out-of-focus (DMT) or overloaded (SPEC) particles. Dead time for corresponding image record for PMS probes.')
+    netcdf.defVarDeflate(f, varid103, true, true, 9);
 	
 	if probetype~=0 || probetype~=3 % Added by Joe Finlon - 06/22/17
         varid104  = netcdf.defVar(f,'Particle_number_all','int',dimid0);
 		netcdf.putAtt(f, varid104, 'Units', '--')
 		netcdf.putAtt(f, varid104, 'Description', 'Index of particle in 2-D buffer')
+        netcdf.defVarDeflate(f, varid104, true, true, 9);
 	end
 	%varid3 = netcdf.defVar(f,'wkday','double',dimid0);
 	varid4  = netcdf.defVar(f,'position','short',[dimid1 dimid0]);
 	netcdf.putAtt(f, varid4, 'Units', '--')
 	netcdf.putAtt(f, varid4, 'Description', 'Slice within image record where particle is first sampled')
+    netcdf.defVarDeflate(f, varid4, true, true, 9);
 	
 	varid5  = netcdf.defVar(f,'particle_time','int',dimid0);
 	netcdf.putAtt(f, varid5, 'Units', 'HHMMSS')
 	netcdf.putAtt(f, varid5, 'Description', 'Particle time (not available for 2DS/HVPS)')
+    netcdf.defVarDeflate(f, varid5, true, true, 9);
 	
 	varid6  = netcdf.defVar(f,'particle_millisec','short',dimid0);
 	netcdf.putAtt(f, varid6, 'Units', 'ms')
 	netcdf.putAtt(f, varid6, 'Description', 'Sub-second particle time (not available for 2DS/HVPS)')
+    netcdf.defVarDeflate(f, varid6, true, true, 9);
 	
 	varid7  = netcdf.defVar(f,'particle_microsec','double',dimid0);
 	netcdf.putAtt(f, varid7, 'Units', 'microsec')
 	netcdf.putAtt(f, varid7, 'Description', 'Sub-second particle time (unitless clock count for 2DS/HVPS)')
+    netcdf.defVarDeflate(f, varid7, true, true, 9);
 	
 	varid8  = netcdf.defVar(f,'parent_rec_num','int',dimid0);
 	netcdf.putAtt(f, varid8, 'Units', '--')
 	netcdf.putAtt(f, varid8, 'Description', 'Index of image record in which the particle resides')
+    netcdf.defVarDeflate(f, varid8, true, true, 9);
 	
 	varid9  = netcdf.defVar(f,'particle_num','short',dimid0);
 	netcdf.putAtt(f, varid9, 'Units', '--')
 	netcdf.putAtt(f, varid9, 'Description', 'Particle index within current image record')
+    netcdf.defVarDeflate(f, varid9, true, true, 9);
 	
 	varid10 = netcdf.defVar(f,'image_length','short',dimid0);
 	netcdf.putAtt(f, varid10, 'Units', '--')
 	netcdf.putAtt(f, varid10, 'Description', 'Particle length in time direction using # photodiodes')
+    netcdf.defVarDeflate(f, varid10, true, true, 9);
 	
 	varid11 = netcdf.defVar(f,'image_width','short',dimid0);
 	netcdf.putAtt(f, varid11, 'Units', '--')
 	netcdf.putAtt(f, varid11, 'Description', 'Particle length in photodiode direction using # photodiodes')
+    netcdf.defVarDeflate(f, varid11, true, true, 9);
 	
 	varid12 = netcdf.defVar(f,'image_area','double',dimid0);
 	netcdf.putAtt(f, varid12, 'Units', 'mm^2')
 	netcdf.putAtt(f, varid12, 'Description', 'Projected area using the # shadowed photodiodes')
+    netcdf.defVarDeflate(f, varid12, true, true, 9);
 	
 	varid13 = netcdf.defVar(f,'image_longest_y','short',dimid0);
 	netcdf.putAtt(f, varid13, 'Units', '--')
 	netcdf.putAtt(f, varid13, 'Description', 'Longest vertically-oriented chord through particle in time direction')
+    netcdf.defVarDeflate(f, varid13, true, true, 9);
 	
 	varid14 = netcdf.defVar(f,'image_max_top_edge_touching','short',dimid0);
 	netcdf.putAtt(f, varid14, 'Units', '--')
 	netcdf.putAtt(f, varid14, 'Description', 'Maximum # of times the bottom diode is shadowed in succession')
+    netcdf.defVarDeflate(f, varid14, true, true, 9);
 	
 	varid15 = netcdf.defVar(f,'image_max_bottom_edge_touching','short',dimid0);
 	netcdf.putAtt(f, varid15, 'Units', '--')
 	netcdf.putAtt(f, varid15, 'Description', 'Maximum # of times the top diode is shadowed in succession')
+    netcdf.defVarDeflate(f, varid15, true, true, 9);
 	
 	varid16 = netcdf.defVar(f,'image_touching_edge','byte',dimid0);
 	netcdf.putAtt(f, varid16, 'Units', '--')
 	netcdf.putAtt(f, varid16, 'Description', '0 denotes image entirely in array; 1 denotes image touching edge')
+    netcdf.defVarDeflate(f, varid16, true, true, 9);
 	
 	varid17 = netcdf.defVar(f,'image_auto_reject','short',dimid0);
 	netcdf.putAtt(f, varid17, 'Units', '--')
@@ -327,97 +353,120 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		'"p" or 112: < 25% shadowed diodes in rectangle encompassing particle; ',...
 		'"h" or 104 or 72 or 117: hollow particle; "s" or 115: split image; ',...
 		'"z" or 122: zero area image; "f" or 102: zero area image)'])
+    netcdf.defVarDeflate(f, varid17, true, true, 9);
 	
 	varid18 = netcdf.defVar(f,'image_hollow','byte',dimid0);
 	netcdf.putAtt(f, varid18, 'Units', '--')
 	netcdf.putAtt(f, varid18, 'Description', '0 denotes not hollow; 1 denotes a hollow image')
+    netcdf.defVarDeflate(f, varid18, true, true, 9);
 	
 	varid19 = netcdf.defVar(f,'image_center_in','byte',dimid0);
 	netcdf.putAtt(f, varid19, 'Units', '--')
 	netcdf.putAtt(f, varid19, 'Description', '0 denotes center of particle outside array; 1 denotes center is inside')
+    netcdf.defVarDeflate(f, varid19, true, true, 9);
 	
 	varid20 = netcdf.defVar(f,'image_axis_ratio','double',dimid0);
 	netcdf.putAtt(f, varid20, 'Units', '--')
 	netcdf.putAtt(f, varid20, 'Description', 'Ratio between maximum vertical length and maximum horizontal length')
+    netcdf.defVarDeflate(f, varid20, true, true, 9);
 	
 	varid21 = netcdf.defVar(f,'image_diam_circle_fit','double',dimid0);
 	netcdf.putAtt(f, varid21, 'Units', 'mm')
 	netcdf.putAtt(f, varid21, 'Description', 'Dmax following Heymsfield & Parrish (1978)')
+    netcdf.defVarDeflate(f, varid21, true, true, 9);
 	
 	varid22 = netcdf.defVar(f,'image_diam_horiz_chord','double',dimid0);
 	netcdf.putAtt(f, varid22, 'Units', 'mm')
 	netcdf.putAtt(f, varid22, 'Description', 'Dmax from # slices+1; best for sideways-looking probes')
+    netcdf.defVarDeflate(f, varid22, true, true, 9);
 	
 	varid23 = netcdf.defVar(f,'image_diam_horiz_chord_corr','double',dimid0);
 	netcdf.putAtt(f, varid23, 'Units', 'mm')
 	netcdf.putAtt(f, varid23, 'Description', 'Dmax from # slices+1, with Korolev (2007) correction applied to hollow spherical particles')
+    netcdf.defVarDeflate(f, varid23, true, true, 9);
 	
 	varid24 = netcdf.defVar(f,'image_diam_following_bamex_code','double',dimid0);
 	netcdf.putAtt(f, varid24, 'Units', 'mm')
 	netcdf.putAtt(f, varid24, 'Description', 'Dmax from maximum length chord through the particle')
+    netcdf.defVarDeflate(f, varid24, true, true, 9);
 	
 	varid25 = netcdf.defVar(f,'image_diam_vert_chord','double',dimid0);
 	netcdf.putAtt(f, varid25, 'Units', 'mm')
 	netcdf.putAtt(f, varid25, 'Description', ['Dmax from maximum length in photodiode direction; ',...
 		'best for sideways-looking probes'])
+    netcdf.defVarDeflate(f, varid25, true, true, 9);
 	
 	varid26 = netcdf.defVar(f,'image_diam_minR','double',dimid0);
 	netcdf.putAtt(f, varid26, 'Units', 'mm')
 	netcdf.putAtt(f, varid26, 'Description', 'Dmax of smallest circle enclosing the particle')
+    netcdf.defVarDeflate(f, varid26, true, true, 9);
 	
 	varid27 = netcdf.defVar(f,'image_diam_AreaR','double',dimid0);
 	netcdf.putAtt(f, varid27, 'Units', 'mm')
 	netcdf.putAtt(f, varid27, 'Description', 'Area equivalent diameter')
+    netcdf.defVarDeflate(f, varid27, true, true, 9);
 	
 	varid45 = netcdf.defVar(f,'image_perimeter','double',dimid0);
 	netcdf.putAtt(f, varid45, 'Units', 'mm')
 	netcdf.putAtt(f, varid45, 'Description', 'Perimeter following the particle boundary')
+    netcdf.defVarDeflate(f, varid45, true, true, 9);
 	
 	if 1==iRectEllipse
 		varid46 = netcdf.defVar(f,'image_RectangleL','double',dimid0);
 		netcdf.putAtt(f, varid46, 'Units', 'mm')
 		netcdf.putAtt(f, varid46, 'Description', 'Length of smallest rectangle enclosing the particle')
+        netcdf.defVarDeflate(f, varid46, true, true, 9);
 		
 		varid47 = netcdf.defVar(f,'image_RectangleW','double',dimid0);
 		netcdf.putAtt(f, varid47, 'Units', 'mm')
 		netcdf.putAtt(f, varid47, 'Description', 'Width of smallest rectangle enclosing the particle')
+        netcdf.defVarDeflate(f, varid47, true, true, 9);
 		
 		varid67 = netcdf.defVar(f,'image_RectangleAngle','double',dimid0);
 		netcdf.putAtt(f, varid67, 'Units', 'radians')
 		netcdf.putAtt(f, varid67, 'Description', 'Angle of rectangle with respect to the time direction')
+        netcdf.defVarDeflate(f, varid67, true, true, 9);
 		
 		varid48 = netcdf.defVar(f,'image_EllipseL','double',dimid0);
 		netcdf.putAtt(f, varid48, 'Units', 'mm')
 		netcdf.putAtt(f, varid48, 'Description', 'Length of smallest ellipse enclosing the particle')
+        netcdf.defVarDeflate(f, varid48, true, true, 9);
 		
 		varid49 = netcdf.defVar(f,'image_EllipseW','double',dimid0);
 		netcdf.putAtt(f, varid49, 'Units', 'mm')
 		netcdf.putAtt(f, varid49, 'Description', 'Width of smallest ellipse enclosing the particle')
+        netcdf.defVarDeflate(f, varid49, true, true, 9);
 		
 		varid69 = netcdf.defVar(f,'image_EllipseAngle','double',dimid0);
 		netcdf.putAtt(f, varid69, 'Units', 'radians')
 		netcdf.putAtt(f, varid69, 'Description', 'Angle of rectangle with respect to the time direction')
+        netcdf.defVarDeflate(f, varid69, true, true, 9);
 	end
 	varid28 = netcdf.defVar(f,'percent_shadow_area','double',dimid0);
 	netcdf.putAtt(f, varid28, 'Units', 'percent')
 	netcdf.putAtt(f, varid28, 'Description', 'Ratio between the projected area and L*W')
+    netcdf.defVarDeflate(f, varid28, true, true, 9);
 	
 	varid29 = netcdf.defVar(f,'edge_at_max_hole','short',dimid0);
 	netcdf.putAtt(f, varid29, 'Units', '--')
 	netcdf.putAtt(f, varid29, 'Description', ['# diodes between edges of the particle for the slice ',...
 		'containing the largest gap inside the particle'])
+    netcdf.defVarDeflate(f, varid29, true, true, 9);
 	
 	varid30 = netcdf.defVar(f,'max_hole_diameter','short',dimid0);
 	netcdf.putAtt(f, varid30, 'Units', '--')
 	netcdf.putAtt(f, varid30, 'Description', 'Diameter of the largest hole inside the particle')
+    netcdf.defVarDeflate(f, varid30, true, true, 9);
 	
 	varid31 = netcdf.defVar(f,'part_z','double',dimid0);
 	netcdf.putAtt(f, varid31, 'Units', '--')
 	netcdf.putAtt(f, varid31, 'Description', 'Particle depth in object plane calculated via lookup table')
+    netcdf.defVarDeflate(f, varid31, true, true, 9);
 	
 	varid32 = netcdf.defVar(f,'size_factor','double',dimid0);
 	netcdf.putAtt(f, varid32, 'Units', '--')
 	netcdf.putAtt(f, varid32, 'Description', 'Dmax reduction factor folowing Korolev (2007) correction')
+    netcdf.defVarDeflate(f, varid32, true, true, 9);
 	
 	varid33 = netcdf.defVar(f,'holroyd_habit','short',dimid0);
 	netcdf.putAtt(f, varid33, 'Units', '--')
@@ -425,24 +474,29 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		'("M" or 77: zero image; "C" or 67: center-out image; "t" or 116: tiny; "o" or 111: oriented; ',...
 		'"l" or 108: linear; "a" or 97: aggregate; "g" or 103: graupel; "s" or 115: sphere; ',...
 		'"h" or 104: hexagonal; "i" or 105: irregular; "d" or 100: dendrite)'])
+    netcdf.defVarDeflate(f, varid33, true, true, 9);
 	
 	varid34 = netcdf.defVar(f,'area_hole_ratio','double',dimid0);
 	netcdf.putAtt(f, varid34, 'Units', '--')
 	netcdf.putAtt(f, varid34, 'Description', 'Ratio between the projected area and the area of hole inside particle')
+    netcdf.defVarDeflate(f, varid34, true, true, 9);
 	
 	varid35 = netcdf.defVar(f,'inter_arrival','double',dimid0);
 	netcdf.putAtt(f, varid35, 'Units', 'sec')
 	netcdf.putAtt(f, varid35, 'Description', ['Inter-arrival time between particles ',...
 		'(use diff(time_in_seconds) for all but 2DC/2DP)'])
+    netcdf.defVarDeflate(f, varid35, true, true, 9);
 	
 	varid36 = netcdf.defVar(f,'bin_stats','int',dimid2);
 	netcdf.putAtt(f, varid36, 'Units', '--')
 	netcdf.putAtt(f, varid36, 'Description', '# times specified photodiode is shadowed for particles in this file')
+    netcdf.defVarDeflate(f, varid36, true, true, 9);
 	
 	if iCalcAllDiodeStats
 		varid37 = netcdf.defVar(f,'image_bin_stats','int',[dimid2 dimid0]);
 		netcdf.putAtt(f, varid37, 'Units', '--')
 		netcdf.putAtt(f, varid37, 'Description', '# times specified photodiode is shadowed for each particle')
+        netcdf.defVarDeflate(f, varid37, true, true, 9);
 	end
 	
 	netcdf.endDef(f)
@@ -460,10 +514,10 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	
 	% Initialize corrupt record and particle counters - Added by Dan Stechman 8/1/17
 	% Currently, issue is specific to PECAN, but may be present with other DMT data
-	if strcmp(projectname, 'PECAN') % Changed condition to be project-specific rather than probe-specific ~ Joe Finlon 11/09/17
+    if (strcmp(projectname, 'PECAN') || strcmp(projectname, 'GCPEx')) && (probetype==1) % Added GCPEx to corruption check ~ Joe Finlon 02/13/19
 		crptRecCount = 0;
 		crptPartCount = 0;
-	end
+    end
 	
 	%% Processing nth chuck. Every chuck is nEvery frame
 	%% Analyze each individual particle images and Outpu the particle by particle information
@@ -501,22 +555,21 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		% Check the current data record for corrupt boundaries and keep track
 		% of which and how many records and particles are being dicarded
 		% May be PECAN-specific, but should be tested with other DMT probe data - Added by Dan Stechman 8/1/17
-		if strcmp(projectname, 'PECAN') % Changed condition to be project-specific rather than probe-specific ~ Joe Finlon 11/09/17
+		if (strcmp(projectname, 'PECAN') || strcmp(projectname, 'GCPEx')) && (probetype==1) % Added GCPEx to corruption check ~ Joe Finlon 02/13/19
 			tempMmbr = ismember(data,boundary);
 			memberSum = sum(tempMmbr,2);
 			numCrptBnds = length(find(memberSum > 4 & memberSum < 8));
 			numGoodBnds = length(find(memberSum == 8));
 
             if numCrptBnds > 0
-				fprintf('%d/%d boundaries in record %d are corrupt.\n',numCrptBnds,numGoodBnds+numCrptBnds,i);
+				fprintf('%d/%d boundaries in record %d are corrupt. Skipping this record.\n',numCrptBnds,numGoodBnds+numCrptBnds,i);
 				crptRecCount = crptRecCount + 1;
 				crptPartCount = crptPartCount + (numGoodBnds + numCrptBnds);
             end
-        else % Added conditional block for non-PECAN cases
+        else % Added conditional block for non-PECAN & non-GCPEx cases
             numCrptBnds = 0;
 		end
 		
-		%c=[dec2bin(data(:,1),8),dec2bin(data(:,2),8),dec2bin(data(:,3),8),dec2bin(data(:,4),8)];
         while data(j,1) ~= -1 && j < size(data,1) && numCrptBnds < 1
 			% Calculate every particles
 %             if (isequal(data(j,:), boundary) && ( (isequal(data(j+1,1), boundarytime) || probetype==1) ) )
@@ -687,11 +740,129 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                             part_sec_offset = 0;
                         end
                         
+                        part_hour(kk) = part_hour(kk) + part_hour_offset;
+                        part_min(kk) = part_min(kk) + part_min_offset;
+                        part_sec(kk) = part_sec(kk) + part_sec_offset;
+                    % Apply time correction to CIP probe-time for select
+                    % GCPEx flights - Added by Joe Finlon 02/13/19
+                    elseif strcmp(projectname, 'GCPEx') && strcmp(probename, 'CIP')
+                        if (handles.month == 1 && handles.day == 19)
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight+(handles.millisec/1000.) < 55660.09
+                                part_hour_offset = 14; part_min_offset = 40; part_sec_offset = 53;
+                            elseif (recTime_secFromMidnight+(handles.millisec/1000.) >= 55660.09 &&...
+                                    recTime_secFromMidnight+(handles.millisec/1000.) < 62372.095)
+                                part_hour_offset = 15; part_min_offset = 27; part_sec_offset = 46;
+                            elseif recTime_secFromMidnight+(handles.millisec/1000.) >= 62372.095
+                                part_hour_offset = 17; part_min_offset = 19; part_sec_offset = 33;
+                            end
+                        elseif (handles.month == 1 && handles.day == 28)
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight < 57830
+                                part_hour_offset = 15; part_min_offset = 46; part_sec_offset = 36;
+                            elseif recTime_secFromMidnight >= 57830
+                                part_hour_offset = 16; part_min_offset = 3; part_sec_offset = 50;
+                            end
+                        elseif (handles.month == 1 && handles.day == 30)
+                            part_hour_offset = 22; part_min_offset = 36; part_sec_offset = 48;
+                        elseif (handles.month == 1 && handles.day == 31)
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight < 4989
+                                part_hour_offset = -1; part_min_offset = -23; part_sec_offset = -11;
+                            elseif (recTime_secFromMidnight >= 4989 && recTime_secFromMidnight < 5977)
+                                part_hour_offset = 1; part_min_offset = 23; part_sec_offset = 9;
+                            else
+                                part_hour_offset = 1; part_min_offset = 39; part_sec_offset = 37;
+                            end
+                        elseif (handles.month == 2 && handles.day == 12)
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight < 13679
+                                part_hour_offset = 2; part_min_offset = 59; part_sec_offset = 0;
+                            elseif (recTime_secFromMidnight >= 13679 && recTime_secFromMidnight < 13733)
+                                part_hour_offset = 3; part_min_offset = 47; part_sec_offset = 59;
+                            elseif (recTime_secFromMidnight >= 13733 && recTime_secFromMidnight < 17575)
+                                part_hour_offset = 3; part_min_offset = 48; part_sec_offset = 53;
+                            elseif (recTime_secFromMidnight >= 17575 && recTime_secFromMidnight < 17693)
+                                part_hour_offset = 4; part_min_offset = 52; part_sec_offset = 55;
+                            elseif (recTime_secFromMidnight >= 17693 && recTime_secFromMidnight < 18138)
+                                part_hour_offset = 4; part_min_offset = 54; part_sec_offset = 53;
+                            elseif (recTime_secFromMidnight >= 18138 && recTime_secFromMidnight < 19843)
+                                part_hour_offset = 5; part_min_offset = 2; part_sec_offset = 18;
+                            elseif (recTime_secFromMidnight >= 19843 && recTime_secFromMidnight < 19903)
+                                part_hour_offset = 5; part_min_offset = 30; part_sec_offset = 43;
+                            elseif (recTime_secFromMidnight >= 19903 && recTime_secFromMidnight < 19942)
+                                part_hour_offset = 5; part_min_offset = 31; part_sec_offset = 43;
+                            elseif (recTime_secFromMidnight >= 19942 && recTime_secFromMidnight < 20850)
+                                part_hour_offset = 5; part_min_offset = 32; part_sec_offset = 22;
+                            elseif (recTime_secFromMidnight >= 20850 && recTime_secFromMidnight < 20994)
+                                part_hour_offset = 5; part_min_offset = 47; part_sec_offset = 30;
+                            elseif (recTime_secFromMidnight >= 20994 && recTime_secFromMidnight < 21028)
+                                part_hour_offset = 5; part_min_offset = 49; part_sec_offset = 54;
+                            elseif (recTime_secFromMidnight >= 21028 && recTime_secFromMidnight < 21642)
+                                part_hour_offset = 5; part_min_offset = 50; part_sec_offset = 28;
+                            elseif recTime_secFromMidnight >= 21642
+                                part_hour_offset = 6; part_min_offset = 0; part_sec_offset = 42;
+                            end
+                        elseif (handles.month == 2 && handles.day == 18) % time offset was different during flight #1 after 122214 UTC
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight < 44534
+                                part_hour_offset = 9; part_min_offset = 38; part_sec_offset = 33;
+                            elseif (recTime_secFromMidnight >= 44534 && recTime_secFromMidnight < 57000) % 2nd chunk of flight #1
+                                part_hour_offset = 12; part_min_offset = 22; part_sec_offset = 14;
+                            else % offset was the same throughout flight #2 (~1550 UTC to the end of flight)
+                                part_hour_offset = 15; part_min_offset = 37; part_sec_offset = 35;
+                            end
+                        elseif (handles.month == 2 && handles.day == 24)
+                            recTime_secFromMidnight = double(handles.hour)*3600 + double(handles.minute)*60 +...
+                                double(handles.second); % to diagnose specific cases on this date
+                            if recTime_secFromMidnight < 48513
+                                part_hour_offset = 11; part_min_offset = 32; part_sec_offset = 3;
+                            elseif (recTime_secFromMidnight >= 48513 && recTime_secFromMidnight < 48868)
+                                part_hour_offset = 13; part_min_offset = 28; part_sec_offset = 3;
+                            elseif (recTime_secFromMidnight >= 48868 && recTime_secFromMidnight < 49743)
+                                part_hour_offset = 13; part_min_offset = 34; part_sec_offset = 28;
+                            elseif (recTime_secFromMidnight >= 49743 && recTime_secFromMidnight < 50088)
+                                part_hour_offset = 13; part_min_offset = 49; part_sec_offset = 3;
+                            elseif (recTime_secFromMidnight >= 50088 && recTime_secFromMidnight < 52887)
+                                part_hour_offset = 13; part_min_offset = 54; part_sec_offset = 48;
+                            elseif (recTime_secFromMidnight >= 52887 && recTime_secFromMidnight < 52958)
+                                part_hour_offset = 14; part_min_offset = 41; part_sec_offset = 27;
+                            elseif (recTime_secFromMidnight >= 52958 && recTime_secFromMidnight < 53045)
+                                part_hour_offset = 14; part_min_offset = 42; part_sec_offset = 38;
+                            elseif (recTime_secFromMidnight >= 53045 && recTime_secFromMidnight < 60000) % last segment of flight #1
+                                part_hour_offset = 14; part_min_offset = 44; part_sec_offset = 5;
+                            elseif (recTime_secFromMidnight >= 60000 && recTime_secFromMidnight < 71047) % first segment of flight #2
+                                part_hour_offset = 16; part_min_offset = 38; part_sec_offset = 49;
+                            elseif (recTime_secFromMidnight >= 71047)
+                                part_hour_offset = 19; part_min_offset = 43; part_sec_offset = 38;
+                            end
+                        else
+                            part_hour_offset = 0; part_min_offset = 0; part_sec_offset = 0;
+                        end
+                            
                         
                         part_hour(kk) = part_hour(kk) + part_hour_offset;
                         part_min(kk) = part_min(kk) + part_min_offset;
                         part_sec(kk) = part_sec(kk) + part_sec_offset;
                         
+                        part_min(part_sec >= 60) = part_min(part_sec >= 60) + 1;
+                        part_sec(part_sec >= 60) = part_sec(part_sec >= 60) - 60;
+                        
+                        part_min(part_sec < 0) = part_min(part_sec < 0) - 1;
+                        part_sec(part_sec < 0) = part_sec(part_sec < 0) + 60;
+                        
+                        part_hour(part_min >= 60) = part_hour(part_min >= 60) + 1;
+                        part_min(part_min >= 60) = part_min(part_min >= 60) - 60;
+                        part_hour(part_hour >= 24) = part_hour(part_hour >= 24) - 24;
+                        
+                        part_hour(part_min < 0) = part_hour(part_min < 0) - 1;
+                        part_min(part_min < 0) = part_min(part_min < 0) + 60;
+                        part_hour(part_hour < 0) = part_hour(part_hour < 0) + 24;
                     end
                     
                     particle_sliceCount(kk)=bitand(data(start-1,1),127);
@@ -700,14 +871,21 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                     
                     time_in_seconds(kk) = part_hour(kk) * 3600 + part_min(kk) * 60 + part_sec(kk) + part_mil(kk)/1000 + part_micro(kk);
                     
-                    
-                    if kk > 1
-                        images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
+%                     if kk > 1
+%                         images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds(kk-1);
+%                     else
+%                         images.int_arrival(kk) = 0;
+%                     end
+                    % Compute inter-arrival time for ALL particles,
+                    % including the first particle in each record ~ Added
+                    % by Joe Finlon 02/13/19
+                    if exist('time_in_seconds_prev', 'var') % not the first particle in the data file
+                        images.int_arrival(kk) = time_in_seconds(kk) - time_in_seconds_prev;
                     else
                         images.int_arrival(kk) = 0;
                     end
-                    
-                    
+                    time_in_seconds_prev = time_in_seconds(kk); % assign the time for use in next iteration
+
                 elseif probetype==2
                     
                     particle_DOF(kk)=bitand(data(header_loc,4), 32768);

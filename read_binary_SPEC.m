@@ -10,6 +10,8 @@ function read_binary_SPEC(infilename,outfilename)
 %   * Modified to prevent termination during rare instance when attempting
 %   to decode beyond the image buffer
 %               Joe Finlon, 03/08/2017
+%   * Added netCDF4 support and data compression
+%               Joe Finlon, 02/13/2019
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -39,38 +41,40 @@ for i = 1:filenums
     
     fid=fopen(infilename,'r','l');
 
-    f = netcdf.create(outfilename1, 'clobber');
+    f = netcdf.create(outfilename1, 'NETCDF4'); % netCDF-4/HDF5 compression support - Added by Joe Finlon 02/13/19
     
     dimid0 = netcdf.defDim(f,'time',netcdf.getConstant('NC_UNLIMITED'));
     dimid1 = netcdf.defDim(f,'ImgRowlen',8);
     dimid2 = netcdf.defDim(f,'ImgBlocklen',1700);
     
-    varid0 = netcdf.defVar(f,'year','short',dimid0);
-    varid1 = netcdf.defVar(f,'month','byte',dimid0);
-    varid2 = netcdf.defVar(f,'day','byte',dimid0);
-    varid3 = netcdf.defVar(f,'hour','byte',dimid0);
-    varid4 = netcdf.defVar(f,'minute','byte',dimid0);
-    varid5 = netcdf.defVar(f,'second','byte',dimid0);
-    varid6 = netcdf.defVar(f,'millisec','short',dimid0);
-    varid7 = netcdf.defVar(f,'wkday','byte',dimid0);
-    varid8 = netcdf.defVar(f,'data','int',[dimid1 dimid2 dimid0]);
+    % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
+    varid0 = netcdf.defVar(f,'year','short',dimid0); netcdf.defVarDeflate(f, varid0, true, true, 9);
+    varid1 = netcdf.defVar(f,'month','byte',dimid0); netcdf.defVarDeflate(f, varid1, true, true, 9);
+    varid2 = netcdf.defVar(f,'day','byte',dimid0); netcdf.defVarDeflate(f, varid2, true, true, 9);
+    varid3 = netcdf.defVar(f,'hour','byte',dimid0); netcdf.defVarDeflate(f, varid3, true, true, 9);
+    varid4 = netcdf.defVar(f,'minute','byte',dimid0); netcdf.defVarDeflate(f, varid4, true, true, 9);
+    varid5 = netcdf.defVar(f,'second','byte',dimid0); netcdf.defVarDeflate(f, varid5, true, true, 9);
+    varid6 = netcdf.defVar(f,'millisec','short',dimid0); netcdf.defVarDeflate(f, varid6, true, true, 9);
+    varid7 = netcdf.defVar(f,'wkday','byte',dimid0); netcdf.defVarDeflate(f, varid7, true, true, 9);
+    varid8 = netcdf.defVar(f,'data','int',[dimid1 dimid2 dimid0]); netcdf.defVarDeflate(f, varid8, true, true, 9);
     netcdf.endDef(f)
         
-    f1 = netcdf.create(outfilename2, 'clobber');
+    f1 = netcdf.create(outfilename2, 'NETCDF4');
     
     dimid01 = netcdf.defDim(f1,'time',netcdf.getConstant('NC_UNLIMITED'));
     dimid11 = netcdf.defDim(f1,'ImgRowlen',8);
     dimid21 = netcdf.defDim(f1,'ImgBlocklen',1700);
     
-    varid01 = netcdf.defVar(f1,'year','short',dimid01);
-    varid11 = netcdf.defVar(f1,'month','byte',dimid01);
-    varid21 = netcdf.defVar(f1,'day','byte',dimid01);
-    varid31 = netcdf.defVar(f1,'hour','byte',dimid01);
-    varid41 = netcdf.defVar(f1,'minute','byte',dimid01);
-    varid51 = netcdf.defVar(f1,'second','byte',dimid01);
-    varid61 = netcdf.defVar(f1,'millisec','short',dimid01);
-    varid71 = netcdf.defVar(f1,'wkday','byte',dimid01);
-    varid81 = netcdf.defVar(f1,'data','int',[dimid11 dimid21 dimid01]);
+    % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
+    varid01 = netcdf.defVar(f1,'year','short',dimid01); netcdf.defVarDeflate(f1, varid01, true, true, 9);
+    varid11 = netcdf.defVar(f1,'month','byte',dimid01); netcdf.defVarDeflate(f1, varid11, true, true, 9);
+    varid21 = netcdf.defVar(f1,'day','byte',dimid01); netcdf.defVarDeflate(f1, varid21, true, true, 9);
+    varid31 = netcdf.defVar(f1,'hour','byte',dimid01); netcdf.defVarDeflate(f1, varid31, true, true, 9);
+    varid41 = netcdf.defVar(f1,'minute','byte',dimid01); netcdf.defVarDeflate(f1, varid41, true, true, 9);
+    varid51 = netcdf.defVar(f1,'second','byte',dimid01); netcdf.defVarDeflate(f1, varid51, true, true, 9);
+    varid61 = netcdf.defVar(f1,'millisec','short',dimid01); netcdf.defVarDeflate(f1, varid61, true, true, 9);
+    varid71 = netcdf.defVar(f1,'wkday','byte',dimid01); netcdf.defVarDeflate(f1, varid71, true, true, 9);
+    varid81 = netcdf.defVar(f1,'data','int',[dimid11 dimid21 dimid01]); netcdf.defVarDeflate(f1, varid81, true, true, 9);
     netcdf.endDef(f1)
     
     kk1=1;
