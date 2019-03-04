@@ -67,6 +67,8 @@ projectName = 'GPM'; % will use predefined probe settings already in sizeDist.m
 probeName = {'2DS', 'HVPS'}; % use both '2DS' and 'HVPS' for this example
 numCPU = 1; % will need only 1 CPU to process particle properties
 framesPerCPU = 100000; % max # image records to process per CPU
+createAspectRatio = 0; % do not output particle length/width using rectangle and ellipse fits
+calcAllDiodeStats = 0; % do not output shadowed diode stats on a per-particle basis
 
 flightFilename = [fileDirectory, 'flightData_', date, '.cdf'];
 
@@ -78,5 +80,5 @@ for iter=1:length(probeName) % loop over desired probes
     outFilename = [fileDirectory, 'files/proc', probeName{iter}, '.', date, '_subset.V.cdf'];
 
     imgProc_sm(inFilename, outFilename, probeName{iter}, numCPU,...
-        framesPerCPU, projectName, flightFilename)
+        framesPerCPU, projectName, createAspectRatio, calcAllDiodeStats, flightFilename)
 end

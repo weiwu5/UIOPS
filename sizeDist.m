@@ -56,6 +56,8 @@
 %     Improved detection of first particle for each second of flight
 %     Modified particle length/width precision for use in some Dmax definitions
 %           Joe Finlon, 02/13/19
+%   * Fixed area-equivalent SD calculation
+%           Joe Finlon, 03/04/19
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -209,9 +211,9 @@ switch projectname
                 probetype=1;
                 tasMax=200; % Max airspeed that can be sampled without under-sampling (images would appear skewed)
                 
-				applyIntArrThresh = 1;
+				applyIntArrThresh = 0;
 					defaultIntArrThresh = 1e-6;
-				reaccptShatrs = 1;
+				reaccptShatrs = 0;
 					reaccptD = 0.5; % Diammeter (in mm) to reaccept if initially flagged as shattered
 					reaccptMaxIA = 2.5e-7;	% Max interarrival time in seconds a particle can have to be reaccepted if 
 											% size criteria are met. Possible definition of this is the time of one slice, so in
@@ -833,7 +835,9 @@ for i=1:length(tas)
         entirein = netcdf.getVar(f,netcdf.inqVarID(f,'image_touching_edge'),start,count);
         
         particle_diameter_AreaR = netcdf.getVar(f,netcdf.inqVarID(f,'image_diam_AreaR'),start,count);
-        particle_diameter_AreaR = particle_diameter_AreaR * diodesize;
+        %particle_diameter_AreaR = particle_diameter_AreaR * diodesize;
+        %Removed/ not needed (see imgProc_sm variable reference) ~ Joe
+        %Finlon 3/4/19
 
         Time_in_seconds = netcdf.getVar(f,netcdf.inqVarID(f,'Time_in_seconds'),start,count);
         DMT_DOF_SPEC_OVERLOAD = netcdf.getVar(f,netcdf.inqVarID(f,'DMT_DOF_SPEC_OVERLOAD'),start,count); % Now includes all probes ~ Joe Finlon 11/06/17

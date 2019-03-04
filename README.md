@@ -5,18 +5,16 @@ Please consult this repository's wiki for full, detailed instructions to run the
 
 ## Current Developers & Contributers
 - **Joe Finlon** (finlon2@illinois.edu)
-- **Dan Stechman** (stechma2@illinois.edu)
+- **Dan Stechman** (stechman@ou.edu)
+- **Wei Wu** (weiwu@ou.edu)
 - **Adam Majewski** (amajewsk@uwyo.edu)
-
-## What's New
-**February 26, 2018**
-- **sizeDist:** Added support for adjusting the TAS when NaN values are encountered  
 
 ## Dependencies
 **Supported OSes:** Linux, Mac (MATLAB Windows support coming in the future)  
 **MATLAB Versions:** R2015a and higher (see https://www.mathworks.com/products/matlab.html for download and more info; student version from $99 USD; check w/ university for possible university-wide license)  
 **MATLAB Toolboxes:** Parallel Computing, Statistics and Machine Learning, Curve Fitting, Image Processing  
-**Supported Probes:** 2DS, HVPS, CIP, PIP, 2DC, 2DP  
+**CGAL (for advanced particle morphological calculations):** https://www.cgal.org/download.html  
+**Supported Probes:** 2DS, HVPS, CIP, PIP, 2DC (including NCAR Fast2DC), 2DP  
 **Supported Platforms:** SPEC, DMT, PMS, NCAR  
 
 ## Minimum Working Example

@@ -27,21 +27,24 @@ tas = ncread(flightFile, 'TAS'); % true air speed (m/s)
 pressure = ncread(flightFile, 'Pres'); % static pressure (hPa)
 temperature = ncread(flightFile, 'Temp'); % air temperature (deg C) corrected for dynamic heating
 
-% Get inter-arrival threshold data filename
-iaThreshType = 1; % will apply time-dependent threshold (ignored for HVPS per probe & project defaults within script)
-iaThreshFilename = [fileDirectory, 'intArrThreshold_', date, '.cdf'];
-
 % Apply other processing and output defaults
 
 
 %% Run sizeDist.m Script
 
-for iter=1:length(probeName)
-    % The '.V' indicates using the vertical channel (orientation) of the 2DS
-    % (HVPS)
-    inFilename = [fileDirectory, 'proc', probeName{iter}, '.', date, '_subset.V.cdf'];
-    outFilename = [fileDirectory, 'sd', probeName{iter}, '.', date, '_subset.V.cdf'];
-    
-    sizeDist(inFilename, outFilename, tas, flightTime, probeName{iter}, sizeMethod,...
-        saMethod, pressure, temperature, iaThreshType, createAspectRatio, saveBadParticles, saveIAandSV, projectName, date, iaThreshFilename)
-end
+% 2DS Data (the '.V' indicates using the vertical channel of the 2DS)
+inFilename = [fileDirectory, 'proc2DS.', date, '_subset.V.cdf'];
+outFilename = [fileDirectory, 'sd2DS.', date, '_subset.V.cdf'];
+iaThreshType = 1; % will apply time-dependent threshold
+iaThreshFilename = [fileDirectory, '2DS_intArrThreshold_', date, '.cdf'];
+sizeDist(inFilename, outFilename, tas, flightTime, probeName{1}, sizeMethod,...
+    saMethod, pressure, temperature, iaThreshType, createAspectRatio, saveBadParticles,...
+    saveIAandSV, projectName, date, iaThreshFilename)
+
+% HVPS Data (the '.V' indicates using the vertical orientation of the HVPS)
+inFilename = [fileDirectory, 'procHVPS.', date, '_subset.V.cdf'];
+outFilename = [fileDirectory, 'sdHVPS.', date, '_subset.V.cdf'];
+iaThreshType = 0; % will not apply threshold (per campaign/probe preset setting)
+sizeDist(inFilename, outFilename, tas, flightTime, probeName{2}, sizeMethod,...
+    saMethod, pressure, temperature, iaThreshType, createAspectRatio, saveBadParticles,...
+    saveIAandSV, projectName, date)
