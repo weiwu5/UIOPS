@@ -1838,8 +1838,8 @@ dimid3 = netcdf.defDim(mainf,'Habit',10);
 
 % Define Global Attributes
 NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
-netcdf.putAtt(mainf, NC_GLOBAL, 'Software', 'UIOPS/sizeDist');
-netcdf.putAtt(mainf, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
+netcdf.putAtt(mainf, NC_GLOBAL, 'Software', 'UIOOPS v3.3');
+% netcdf.putAtt(mainf, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
 netcdf.putAtt(mainf, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
 netcdf.putAtt(mainf, NC_GLOBAL, 'Description', ['Contains size distributions of ',...
     'particle count, mass, etc. & various bulk properties.']);

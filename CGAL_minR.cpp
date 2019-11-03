@@ -15,7 +15,8 @@
 // 
 // Code History:
 //   * First version created by Wei Wu, July 24, 2014
-//
+//   * Added support to take input of tas ratio and output circle center, Wei Wu, June 3, 2019
+
 #include "mex.h"
 #include <cstdlib>
 #include <iostream>
@@ -24,6 +25,7 @@
 #include <iterator>
 #include "Miniball.hpp"
 #include <math.h>
+#include "matrix.h"
 
 using namespace std;
 
@@ -34,22 +36,36 @@ void mexFunction( int nlhs, mxArray *plhs[],
   
     #define B_OUT plhs[0]
     #define A_IN prhs[0]
+    #define A2_IN prhs[1] // Added support for TAS ratio between probe & aircraft ~ Joe Finlon 5/12/19
 
+    //double *B[3];
     double *B;
+    double *tasRatio; // Added support for TAS ratio ~ Joe Finlon 5/12/19
+
+    double *B1;
+    double *B2;
+    double *B3;
+
     int m,n;
     mxChar *ICEPIC;
     
-
-    B_OUT=mxCreateDoubleScalar(0.0);
-    B=mxGetPr(B_OUT); 
+    B_OUT=mxCreateDoubleMatrix(1,3,mxREAL);
+    //B_OUT=mxCreateDoubleScalar(0.0);
+    B=mxGetPr(B_OUT);
+    //B2=mxGetPr(B_OUT[1]);
+    //B3=mxGetPr(B_OUT[2]);
+    
     m=mxGetM(A_IN);
     n=mxGetN(A_IN);    
+    tasRatio=mxGetPr(A2_IN); // Added support for TAS ratio ~ Joe Finlon 5/12/19  
     ICEPIC=mxGetChars(A_IN);
     
     if ( 0==m*n ) //"No Illuminated Doide, return 0
     {
-        //cout << "No Illuminated Doide!\n" << endl;
-        *B = 0;
+        cout << "No Illuminated Doide!\n" << endl;
+        *(++B) = 0.0;
+        *(++B) = 0.0;
+        *B = 0.0;
         return;
     }
 
@@ -64,8 +80,8 @@ void mexFunction( int nlhs, mxArray *plhs[],
             if(48==ICEPIC[i*m+j])
             {
                 std::vector<mytype> p(2);
-                p[0]=j;
-                p[1]=i;
+                p[0]=(double)j/ *tasRatio;
+                p[1]=(double)i ; // Added support for TAS ratio ~ Joe Finlon 5/12/19
                 lp.push_back(p);
             }
         }        
@@ -93,8 +109,16 @@ void mexFunction( int nlhs, mxArray *plhs[],
     
     //cout << "Center: " << center << " Radius: " << radius <<endl;
 
-    *B=1.+radius*2; //Assume round doide, add 1 for the boundary
     
+    // center
+    const double* center = mb.center(); 
+    *B = 1.+radius*2; //Assume round doide, add 1 for the boundary
+    B++;
+    *B = *center;
+    center++;
+    B++;
+    *B = *center;
+            
     return;
    
 }

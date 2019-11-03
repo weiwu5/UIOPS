@@ -1,4 +1,4 @@
-function read_binary_SPEC(infilename,outfilename)
+function read_binary_SPEC(infilename, outfilename, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
 %% Read the raw base*.2DS file, and then write into NETCDF file 
@@ -12,8 +12,28 @@ function read_binary_SPEC(infilename,outfilename)
 %               Joe Finlon, 03/08/2017
 %   * Added netCDF4 support and data compression
 %               Joe Finlon, 02/13/2019
+%   * Improvements in handling instances when prob TAS is incorrect
+%               Joe Finlon & Wei Wu, 11/3/2019
+%   * Support for applying time offset correction (e.g., SOCRATES)
+%               Joe Finlon, 11/3/2019
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Added support for probe TAS ratio calculation ~ Joe Finlon 11/3/19
+if ~isempty(varargin)
+    tasFile = varargin{1}; % path to aircraft TAS information
+    fltTAS = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+    fltTAS_fixed = interp_tas(fltTAS); % fix bad TAS values through linear interpolation
+    fltTime1 = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+    fltTime = fltTime1 * 0.0;
+    for iTASTime =1:length(fltTime1)
+        fltTime(iTASTime) = insec2hhmmss(fltTime1(iTASTime));
+    end
+end
+
+% Added support for probe time offset (e.g., SOCRATES) ~ Joe Finlon 11/3/19
+if length(varargin) == 2
+   timeOffset = varargin{2}; % user-specified probe time offset [seconds]
+end
 
 starpos = find(infilename == '*',1,'last');
 
@@ -36,8 +56,8 @@ for i = 1:filenums
         outfilename = ['DIMG.',infilename(1:slashpos-1),'.cdf'];
     end
     
-    outfilename1=[outfilename, '.H.cdf'];
-    outfilename2=[outfilename, '.V.cdf'];
+    outfilename1=[outfilename, '.H.nc'];
+    outfilename2=[outfilename, '.V.nc'];
     
     fid=fopen(infilename,'r','l');
 
@@ -57,6 +77,8 @@ for i = 1:filenums
     varid6 = netcdf.defVar(f,'millisec','short',dimid0); netcdf.defVarDeflate(f, varid6, true, true, 9);
     varid7 = netcdf.defVar(f,'wkday','byte',dimid0); netcdf.defVarDeflate(f, varid7, true, true, 9);
     varid8 = netcdf.defVar(f,'data','int',[dimid1 dimid2 dimid0]); netcdf.defVarDeflate(f, varid8, true, true, 9);
+    varid9 = netcdf.defVar(f,'tas','double',dimid0); netcdf.defVarDeflate(f, varid9, true, true, 9); netcdf.defVarFill(f , varid9, false, -999.);
+    varid10 = netcdf.defVar(f,'tasRatio','double',dimid0); netcdf.defVarDeflate(f, varid10, true, true, 9);
     netcdf.endDef(f)
         
     f1 = netcdf.create(outfilename2, 'NETCDF4');
@@ -75,18 +97,29 @@ for i = 1:filenums
     varid61 = netcdf.defVar(f1,'millisec','short',dimid01); netcdf.defVarDeflate(f1, varid61, true, true, 9);
     varid71 = netcdf.defVar(f1,'wkday','byte',dimid01); netcdf.defVarDeflate(f1, varid71, true, true, 9);
     varid81 = netcdf.defVar(f1,'data','int',[dimid11 dimid21 dimid01]); netcdf.defVarDeflate(f1, varid81, true, true, 9);
+    varid91 = netcdf.defVar(f1,'tas','double',dimid0); netcdf.defVarDeflate(f1, varid91, true, true, 9); netcdf.defVarFill(f1 , varid91, false, -999.);
+    varid101 = netcdf.defVar(f1,'tasRatio','double',dimid0); netcdf.defVarDeflate(f1, varid101, true, true, 9);
     netcdf.endDef(f1)
     
     kk1=1;
     kk2=1;
+    previousTAS = -999; % Joe Finlon 11/3/19
     endfile = 0;
     nNext=1;
-    dataprev=zeros(2048,1);   
+    dataprev=zeros(2048,1);
+    recordTime = []; recordTime1 = []; % for use in TAS ratio calculation ~ Added by Joe Finlon 11/3/19
     
     %fseek(fid,4114*233191,'bof');
     while feof(fid)==0 && endfile == 0 
         %tic
-        [year,month, wkday,day, hour, minute, second, millisec, data, discard]=readRecord(fid);         
+        [year,month, wkday,day, hour, minute, second, millisec, data, discard]=readRecord(fid);
+        % Apply record time correction if user-specified offset exists ~ Added by Joe Finlon 11/3/19
+        if exist('timeOffset', 'var')
+            [year, month, day] = ymd(datetime(year, month, day, hour, minute, second)+ seconds(timeOffset));
+            [hour, minute, second] = hms(datetime(year, month, day, hour, minute, second)+ seconds(timeOffset));
+        end
+        % correct record time by the time offset (sec; if user-specified)
+        
         %timebuffer = [year,month,day, hour, minute, second, millisec]
         %fprintf(formatSpec,A1,A2)
         [year1,month1, wkday1,day1, hour1, minute1, second1, millisec1, data1, discard1]=readRecord(fid);
@@ -95,24 +128,41 @@ for i = 1:filenums
         datan=datan';
         
         
-        [imgH, imgV, nNext]=get_img(datan, hour*10000+minute*100+second+millisec/1000,outfilename);
+        [imgH, imgV, nNext, imgTAS, previousTAS]=get_img(datan, hour*10000+minute*100+second+millisec/1000, outfilename, previousTAS);
         sizeimg= size(imgH);
         if sizeimg(2)>1700
             imgH=imgH(:,1:1700);
-            %sizeimg(2)
         end
         
         sizeimg= size(imgV);
         if sizeimg(2)>1700
             imgV=imgV(:,1:1700);
-            %sizeimg(2)
+        end
+        
+        % Compute ratio between probe TAS and aircraft TAS ~ Joe Finlon
+        % 11/3/19
+        if ~isempty(varargin)
+            if (hour<15)
+                hour = hour + 24;
+            end
+
+            fltTimeInd = find(fltTime==hour*10000+minute*100+second);
+            if (~isempty(fltTimeInd)) && (~isnan(fltTAS_fixed(fltTimeInd)))
+                if imgTAS==-999. % uncorrectable probe TAS for current record
+                    tasRatio = 1.0;
+                else
+                    tasRatio = imgTAS ./ fltTAS_fixed(fltTimeInd); % TAS ratio between SPEC probe and aircraft info
+                end
+            else
+                tasRatio = 1.0; % assume SPEC probe TAS is correct as aircraft TAS does not exist for current time or is NaN
+            end
         end
         
         if sum(sum(imgH))~=0
             for  mmm=1:8
                 img1(mmm,1:1700)=sixteen2int(imgH((mmm-1)*16+1:mmm*16,1:1700));
             end
-
+            
             netcdf.putVar ( f, varid0, kk1-1, 1, year );
             netcdf.putVar ( f, varid1, kk1-1, 1, month );
             netcdf.putVar ( f, varid2, kk1-1, 1, day );
@@ -122,6 +172,10 @@ for i = 1:filenums
             netcdf.putVar ( f, varid6, kk1-1, 1, millisec );
             netcdf.putVar ( f, varid7, kk1-1, 1, wkday );
             netcdf.putVar ( f, varid8, [0, 0, kk1-1], [8,1700,1], img1 );
+            netcdf.putVar ( f, varid9, kk1-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
+            if ~isempty(varargin)
+                netcdf.putVar ( f, varid10, kk1-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
+            end
             
             kk1=kk1+1;
             if mod(kk1,1000) == 0
@@ -133,16 +187,20 @@ for i = 1:filenums
             for  mmm=1:8
                 img2(mmm,1:1700)=sixteen2int(imgV((mmm-1)*16+1:mmm*16,1:1700));
             end
-
+            
             netcdf.putVar ( f1, varid01, kk2-1, 1, year );
             netcdf.putVar ( f1, varid11, kk2-1, 1, month );
             netcdf.putVar ( f1, varid21, kk2-1, 1, day );
             netcdf.putVar ( f1, varid31, kk2-1, 1, hour );
             netcdf.putVar ( f1, varid41, kk2-1, 1, minute );
-            netcdf.putVar ( f1, varid51, kk2-1, 1, second );
+            netcdf.putVar ( f1, varid51,  kk2-1, 1, second );
             netcdf.putVar ( f1, varid61, kk2-1, 1, millisec );
             netcdf.putVar ( f1, varid71, kk2-1, 1, wkday );
             netcdf.putVar ( f1, varid81, [0, 0, kk2-1], [8,1700,1], img2 );
+            netcdf.putVar ( f1, varid91, kk2-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
+            if ~isempty(varargin)
+                netcdf.putVar ( f1, varid101, kk2-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
+            end
 
             kk2=kk2+1;
             if mod(kk2,1000) == 0
@@ -164,6 +222,7 @@ for i = 1:filenums
     end
     
     fclose(fid);
+    
     netcdf.close(f);  
     netcdf.close(f1);      
 end
@@ -185,7 +244,7 @@ function [year,month, wkday,day, hour, minute, second, millisec, data, discard]=
         discard=fread(fid,1,'uint16');
 end
 
-function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
+function [imgH, imgV, nNext, tas, tasPrev]=get_img(buf, timehhmmss, outfilename, tasPrev)
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
@@ -196,6 +255,7 @@ function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     imgH=zeros(128,1700);
     imgV=zeros(128,1700);
+    tas = tasPrev; % TAS will be last known value if not overwritten in this subroutine ~ Added by Joe Finlon 11/3/19
     iSlice=0;
     iii=1;
     while iii<=2048 
@@ -292,7 +352,7 @@ function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
               end
               
         elseif 18507==buf(iii)
-            tas = typecast( uint32(bin2dec([dec2bin(buf(iii-1+50),16) dec2bin(buf(iii-1+51),16)])) ,'single');
+            tasTemp = typecast( uint32(bin2dec([dec2bin(buf(iii-1+50),16) dec2bin(buf(iii-1+51),16)])) ,'single');
             time = buf(iii-1+52)*2^16+buf(iii-1+53);
             nStereo = buf(iii-1+41);
             nTWM = buf(iii-1+42);
@@ -301,6 +361,16 @@ function [imgH, imgV, nNext]=get_img(buf, timehhmmss,outfilename)
             nVOL = buf(iii-1+45);
             nVPD = buf(iii-1+34);
             nHPD = buf(iii-1+35);
+            % Update TAS value for current record ~ Joe Finlon 11/3/19
+            if tasTemp~=tasPrev
+                if (tasTemp==170) || (nHOL+nVOL>0)
+                    tas = tasPrev;
+                else
+                    tas = tasTemp;
+                end
+                tasPrev = tas; % update TAS for use in next iteration
+            end
+            % End of added code block ~ Joe Finlon 11/3/19
             myformat1 = '%f, %f, %f, %d, %d, %d, %d, %d, %d\n';
             fid = fopen([outfilename, '.tas.csv'],'a');
             fprintf(fid, myformat1, [timehhmmss tas time nTWM nSCM nHOL nVOL nVPD nHPD]);
@@ -336,4 +406,14 @@ for i=1:16
     temp=original(i,:)*2^(16-i);
     intres=intres+temp;
 end
+end
+
+function tasNew = interp_tas(tasValues) % interpolate TAS if bad values exist ~ Added by Joe Finlon 11/3/19
+
+tasNew = tasValues;
+good = find((tasValues>0) & ~isnan(tasValues)); bad = find((tasValues==0) | isnan(tasValues));
+if ~isempty(bad)
+    tasNew(bad) = interp1(good, tasValues(good), bad);
+end
+
 end

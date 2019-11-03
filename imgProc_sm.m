@@ -1,4 +1,4 @@
-function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEllipse, iCalcAllDiodeStats, varargin)
+function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEllipse, iCalcAllDiodeStats, iTAS, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  This function is the image processing part of OAP processing using
 %  distributed memory parallisation. The function use one simple interface
@@ -17,6 +17,8 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %    iRectEllipse: 0 - Do not process rectangle/ellipse fit dimensions; 1 - Process this info
 %    iCalcAllDiodeStats: 0 - Do not save diode stats for every particle (large
 %                        files); 1 - Save
+%    iTAS     :   0 - Pixel resolution in time dimension unaltered; 1 - Use
+%                 ratio between aircraft and probe TAS to correct time dimension
 %    varargin :   OPTIONAL argument for the aircraft TAS file name
 %                 (HVPS/2DS probes only)
 %
@@ -89,6 +91,10 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %          GCPEx CIP corrupt record identification/removal now the default
 %          Added computation of inter-arrival time for first particle in
 %          each CIP/PIP buffer
+%    * Updated by Wei Wu & Joe Finlon, 11/3/19
+%          Improvements to hollow particle ID for spherical particles
+%          Support to correct 2DS/HVPS images that are affected by probe 
+%          TAS issues
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -205,6 +211,8 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	diodenum = handles.diodenum;
 	byteperslice = diodenum/8;
 	handles.disagree = 0;
+    
+    diode_size = handles.diodesize;
 	
 	%% Read the particle image files
 	handles.f = netcdf.open(infile,'nowrite');
@@ -222,8 +230,8 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	dimid2 = netcdf.defDim(f,'bin_count',diodenum);
 	
 	NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
-	netcdf.putAtt(f, NC_GLOBAL, 'Software', 'UIOPS/imgProc_sm');
-	netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
+	netcdf.putAtt(f, NC_GLOBAL, 'Software', 'UIOPS v3.3');
+% 	netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
 	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
 	netcdf.putAtt(f, NC_GLOBAL, 'Description', ['Contains size, morphological, ',...
 		'and other particle properties from an uncompressed image file.']);
@@ -370,31 +378,31 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	netcdf.putAtt(f, varid20, 'Description', 'Ratio between maximum vertical length and maximum horizontal length')
     netcdf.defVarDeflate(f, varid20, true, true, 9);
 	
-	varid21 = netcdf.defVar(f,'image_diam_circle_fit','double',dimid0);
-	netcdf.putAtt(f, varid21, 'Units', 'mm')
-	netcdf.putAtt(f, varid21, 'Description', 'Dmax following Heymsfield & Parrish (1978)')
-    netcdf.defVarDeflate(f, varid21, true, true, 9);
-	
-	varid22 = netcdf.defVar(f,'image_diam_horiz_chord','double',dimid0);
-	netcdf.putAtt(f, varid22, 'Units', 'mm')
-	netcdf.putAtt(f, varid22, 'Description', 'Dmax from # slices+1; best for sideways-looking probes')
-    netcdf.defVarDeflate(f, varid22, true, true, 9);
-	
-	varid23 = netcdf.defVar(f,'image_diam_horiz_chord_corr','double',dimid0);
-	netcdf.putAtt(f, varid23, 'Units', 'mm')
-	netcdf.putAtt(f, varid23, 'Description', 'Dmax from # slices+1, with Korolev (2007) correction applied to hollow spherical particles')
-    netcdf.defVarDeflate(f, varid23, true, true, 9);
-	
-	varid24 = netcdf.defVar(f,'image_diam_following_bamex_code','double',dimid0);
-	netcdf.putAtt(f, varid24, 'Units', 'mm')
-	netcdf.putAtt(f, varid24, 'Description', 'Dmax from maximum length chord through the particle')
-    netcdf.defVarDeflate(f, varid24, true, true, 9);
-	
-	varid25 = netcdf.defVar(f,'image_diam_vert_chord','double',dimid0);
-	netcdf.putAtt(f, varid25, 'Units', 'mm')
-	netcdf.putAtt(f, varid25, 'Description', ['Dmax from maximum length in photodiode direction; ',...
-		'best for sideways-looking probes'])
-    netcdf.defVarDeflate(f, varid25, true, true, 9);
+% 	varid21 = netcdf.defVar(f,'image_diam_circle_fit','double',dimid0);
+% 	netcdf.putAtt(f, varid21, 'Units', 'mm')
+% 	netcdf.putAtt(f, varid21, 'Description', 'Dmax following Heymsfield & Parrish (1978)')
+%     netcdf.defVarDeflate(f, varid21, true, true, 9);
+% 	
+% 	varid22 = netcdf.defVar(f,'image_diam_horiz_chord','double',dimid0);
+% 	netcdf.putAtt(f, varid22, 'Units', 'mm')
+% 	netcdf.putAtt(f, varid22, 'Description', 'Dmax from # slices+1; best for sideways-looking probes')
+%     netcdf.defVarDeflate(f, varid22, true, true, 9);
+% 	
+% 	varid23 = netcdf.defVar(f,'image_diam_horiz_chord_corr','double',dimid0);
+% 	netcdf.putAtt(f, varid23, 'Units', 'mm')
+% 	netcdf.putAtt(f, varid23, 'Description', 'Dmax from # slices+1, with Korolev (2007) correction applied to hollow spherical particles')
+%     netcdf.defVarDeflate(f, varid23, true, true, 9);
+% 	
+% 	varid24 = netcdf.defVar(f,'image_diam_following_bamex_code','double',dimid0);
+% 	netcdf.putAtt(f, varid24, 'Units', 'mm')
+% 	netcdf.putAtt(f, varid24, 'Description', 'Dmax from maximum length chord through the particle')
+%     netcdf.defVarDeflate(f, varid24, true, true, 9);
+% 	
+% 	varid25 = netcdf.defVar(f,'image_diam_vert_chord','double',dimid0);
+% 	netcdf.putAtt(f, varid25, 'Units', 'mm')
+% 	netcdf.putAtt(f, varid25, 'Description', ['Dmax from maximum length in photodiode direction; ',...
+% 		'best for sideways-looking probes'])
+%     netcdf.defVarDeflate(f, varid25, true, true, 9);
 	
 	varid26 = netcdf.defVar(f,'image_diam_minR','double',dimid0);
 	netcdf.putAtt(f, varid26, 'Units', 'mm')
@@ -475,6 +483,11 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 		'"l" or 108: linear; "a" or 97: aggregate; "g" or 103: graupel; "s" or 115: sphere; ',...
 		'"h" or 104: hexagonal; "i" or 105: irregular; "d" or 100: dendrite)'])
     netcdf.defVarDeflate(f, varid33, true, true, 9);
+    
+    varid331 = netcdf.defVar(f,'fine_detail_ratio','double',dimid0); % added variable to file output ~ Joe Finlon 11/3/19
+    netcdf.putAtt(f, varid331, 'Units', '--')
+    netcdf.putAtt(f, varid331, 'Description', 'Perim*Diam/Area following Holroyd (1987)')
+    netcdf.defVarDeflate(f,varid331,true,true,9);
 	
 	varid34 = netcdf.defVar(f,'area_hole_ratio','double',dimid0);
 	netcdf.putAtt(f, varid34, 'Units', '--')
@@ -534,8 +547,17 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
             handles.wkday = netcdf.getVar(handles.f,netcdf.inqVarID(handles.f,'wkday'),i-1,1);
         end
         
+        % Optionally use TAS ratio between the probe value and the aircraft
+        % value ~ Joe Finlon 11/3/19
+        if iTAS==1
+            handles.tasRatio = netcdf.getVar(handles.f, netcdf.inqVarID(handles.f, 'tasRatio'), i-1, 1);
+        else
+            handles.tasRatio = 1.0;
+        end
+        
 		if mod(i,100) == 0
-			disp([num2str(i),'/',num2str(handles.img_count), ', ',datestr(now)])
+			disp([num2str(i),'/',num2str(handles.img_count), ', ', num2str(double(handles.hour)*10000+double(handles.minute)*100+double(handles.second)),...
+                ', ',datestr(now)])
 		end
 		varid = netcdf.inqVarID(handles.f,'data');
 		
@@ -982,47 +1004,56 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                 diode_stats = diode_stats + sum(c=='0',1);
                 csum = sum(c=='0',1);
                 
-                images.holroyd_habit(kk) = holroyd(handles,c);
+                tempreturn = CGAL_minR(c, handles.tasRatio);
+                images.minR(kk) = tempreturn(1); % diameter of minimum enclosing circle
+                ctx = tempreturn(2); % position
+                cty = tempreturn(3);
+                
+                % improved [EXPERIMENTAL] particle hollow identification ~ Wei Wu & Joe Finlon 11/3/19
+                [xImgMax, ~] = size(c);
+                if(images.minR(kk)*handles.diodesize<0.3 && length(find(c(max(1,floor(ctx)):min(xImgMax,ceil(ctx)),...
+                        max(1,floor(cty)):min(handles.diodenum,ceil(cty)))=='1')) >=1)
+                    [~, images.FS(kk)] = holroyd(handles, c);
+                    images.holroyd_habit(kk) = 's';
+                    images.is_hollow(kk) = 1;
+                else 
+                    [images.holroyd_habit(kk), images.FS(kk)] = holroyd(handles, c);
+                    images.is_hollow(kk) = 0;
+                end
                 
                 %% Determine if the particle is rejected or not
                 %  Calculate the Particle Length, Width, Area, Auto Reject
                 %  Status And more... See calculate_reject_unified()
                 %  funtion for more information
                 
-                [images.image_length(kk),images.image_width(kk),images.image_area(kk), ...
-                    images.longest_y_within_a_slice(kk),images.max_top_edge_touching(kk),images.max_bottom_edge_touching(kk),...
-                    images.image_touching_edge(kk), images.auto_reject(kk),images.is_hollow(kk),images.percent_shadow(kk),images.part_z(kk),...
-                    images.sf(kk),images.area_hole_ratio(kk),handles]=calculate_reject_unified(c,handles,images.holroyd_habit(kk));
+                [images.image_length(kk),images.image_width(kk),images.image_area(kk), images.longest_y_within_a_slice(kk), ...
+                    images.max_top_edge_touching(kk),images.max_bottom_edge_touching(kk),images.image_touching_edge(kk),    ...
+                    images.auto_reject(kk),images.is_hollow(kk),images.percent_shadow(kk),images.part_z(kk),images.sf(kk),  ...
+                    images.area_hole_ratio(kk),images.max_hole_diameter(kk),images.edge_at_max_hole(kk),images.center_in(kk)] ...
+                    =calculate_reject_unified(c,handles,images.holroyd_habit(kk),images.is_hollow(kk));
                 
-                images.max_hole_diameter(kk) = handles.max_hole_diameter;
-                images.edge_at_max_hole(kk) = handles.edge_at_max_hole;
+                images.image_area(kk) = sum(sum(c=='0'));
+                disttoedge = min(abs(handles.diodenum-cty),cty);
+                if(images.center_in(kk)==1 && images.image_touching_edge(kk)~='0')
+                    images.image_area(kk)=images.image_area(kk)*2*(images.image_width(kk)-disttoedge)/images.image_width(kk);
+                end
+                images.AreaR(kk)=2*sqrt(images.image_area(kk)/3.1415926/handles.tasRatio);  % Calculate the Darea (area-equivalent diameter)
+                images.Perimeter(kk)=ParticlePerimeter(c)/sqrt(handles.tasRatio);
                 
-                max_horizontal_length = images.image_length(kk);
-                max_vertical_length = images.longest_y_within_a_slice(kk);
-                image_area = images.image_area(kk);
+                % perform Korolev correction ~ Wei Wu 11/3/19
+                if(images.auto_reject(kk)=='H')
+                    images.minR(kk) = images.minR(kk)/images.sf(kk);
+                    if (images.holroyd_habit(kk)~= 's')
+                        disp(['WARNING: Habit should be spherical but is '  , char(images.holroyd_habit(kk))]);
+                    end
+                end
                 
-                diode_size= handles.diodesize;
-                corrected_horizontal_diode_size = handles.diodesize;
-                largest_edge_touching  = max(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
-                smallest_edge_touching = min(images.max_top_edge_touching(kk), images.max_bottom_edge_touching(kk));
-                
-                %% Calculate more size deciptor using more advanced techniques
-                %  See dropsize for more information
-                [images.center_in(kk),images.axis_ratio(kk),images.diam_circle_fit(kk),images.diam_horiz_chord(kk),images.diam_vert_chord(kk),...
-                    images.diam_horiz_mean(kk), images.diam_spheroid(kk)]=dropsize(max_horizontal_length,max_vertical_length,image_area...
-                    ,largest_edge_touching,smallest_edge_touching,diode_size,corrected_horizontal_diode_size, diodenum);
-                
-                %% Calculate size deciptor using bamex code
-                %  See dropsize_new for more information
-                % images.diam_bamex(kk) = dropsize_new(c, largest_edge_touching, smallest_edge_touching, diodenum, corrected_horizontal_diode_size, handles.diodesize, max_vertical_length);
-                
-                %% Using OpenCV C program to calculate length, width and radius. This
-                %% Get diameter of the smallest-enclosing circle, rectangle and ellipse
-                %images.minR(kk)=particlesize_cgal(c);
-                images.minR(kk)=CGAL_minR(c);
-                images.AreaR(kk)=2*sqrt(images.image_area(kk)/3.1415926);  % Calculate the Darea (area-equivalent diameter)
-                images.Perimeter(kk)=ParticlePerimeter(c);
-                
+                if (images.image_width(kk)~=0)
+                    images.axis_ratio(kk)=images.image_length(kk)/images.image_width(kk);
+                else
+                    images.axis_ratio(kk)=0;
+                end
+                    
                 if 1==iRectEllipse
                     [images.RectangleL(kk), images.RectangleW(kk), images.RectangleAngle(kk)] = CGAL_RectSize(c);
                     [images.EllipseL(kk), images.EllipseW(kk), images.EllipseAngle(kk)]       = CGAL_EllipseSize(c);
@@ -1068,7 +1099,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			netcdf.putVar ( f, varid9, wstart, w-wstart+1, particle_num(:) );
 			netcdf.putVar ( f, varid10, wstart, w-wstart+1, images.image_length);
 			netcdf.putVar ( f, varid11, wstart, w-wstart+1, images.image_width);
-			netcdf.putVar ( f, varid12, wstart, w-wstart+1, images.image_area*diode_size*diode_size);
+			netcdf.putVar ( f, varid12, wstart, w-wstart+1, images.image_area*diode_size*diode_size/handles.tasRatio);
 			netcdf.putVar ( f, varid13, wstart, w-wstart+1, images.longest_y_within_a_slice);
 			netcdf.putVar ( f, varid14, wstart, w-wstart+1, images.max_top_edge_touching);
 			netcdf.putVar ( f, varid15, wstart, w-wstart+1, images.max_bottom_edge_touching);
@@ -1077,11 +1108,11 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			netcdf.putVar ( f, varid18, wstart, w-wstart+1, images.is_hollow);
 			netcdf.putVar ( f, varid19, wstart, w-wstart+1, images.center_in);
 			netcdf.putVar ( f, varid20, wstart, w-wstart+1, images.axis_ratio);
-			netcdf.putVar ( f, varid21, wstart, w-wstart+1, images.diam_circle_fit);
-			netcdf.putVar ( f, varid22, wstart, w-wstart+1, images.diam_horiz_chord);
-			netcdf.putVar ( f, varid23, wstart, w-wstart+1, images.diam_horiz_chord ./ images.sf);
-			netcdf.putVar ( f, varid24, wstart, w-wstart+1, images.diam_horiz_mean);
-			netcdf.putVar ( f, varid25, wstart, w-wstart+1, images.diam_vert_chord);
+% 			netcdf.putVar ( f, varid21, wstart, w-wstart+1, images.diam_circle_fit);
+% 			netcdf.putVar ( f, varid22, wstart, w-wstart+1, images.diam_horiz_chord);
+% 			netcdf.putVar ( f, varid23, wstart, w-wstart+1, images.diam_horiz_chord ./ images.sf);
+% 			netcdf.putVar ( f, varid24, wstart, w-wstart+1, images.diam_horiz_mean);
+% 			netcdf.putVar ( f, varid25, wstart, w-wstart+1, images.diam_vert_chord);
 			netcdf.putVar ( f, varid26, wstart, w-wstart+1, images.minR*diode_size);
 			netcdf.putVar ( f, varid27, wstart, w-wstart+1, images.AreaR*diode_size);
 			netcdf.putVar ( f, varid45, wstart, w-wstart+1, images.Perimeter*diode_size);
@@ -1099,6 +1130,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			netcdf.putVar ( f, varid31, wstart, w-wstart+1, images.part_z);
 			netcdf.putVar ( f, varid32, wstart, w-wstart+1, images.sf);
 			netcdf.putVar ( f, varid33, wstart, w-wstart+1, int16(images.holroyd_habit));
+            netcdf.putVar ( f, varid331, wstart, w-wstart+1, images.FS); % Added variable ~ Joe Finlon 11/3/19
 			netcdf.putVar ( f, varid34, wstart, w-wstart+1, images.area_hole_ratio);
 			netcdf.putVar ( f, varid35, wstart, w-wstart+1, images.int_arrival);
 			netcdf.putVar ( f, varid36, diode_stats );
