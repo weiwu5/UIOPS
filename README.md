@@ -1,16 +1,16 @@
-# UIOPS: University of Illinois Optical Array Probe (OAP) Processing Software
+# UIOOPS: University of Illinois/Oklahoma Optical Array Probe (OAP) Processing Software
 
-This is the software developed in University of Illinois at Urbana-Champaign to process the Optical Array Probe Datasets.
+This is the software developed currently developed at the University of Oklahoma (and formerly at the University of Illinois at Urbana-Champaign) to process the Optical Array Probe datasets.
 Please consult this repository's wiki for full, detailed instructions to run the software, and also information on optional parameters to run.
 
 ## Current Developers & Contributers
-- **Joe Finlon** (finlon2@illinois.edu)
+- **Joe Finlon** (jfinlon@uw.edu)
 - **Dan Stechman** (stechman@ou.edu)
 - **Wei Wu** (weiwu@ou.edu)
 - **Adam Majewski** (amajewsk@uwyo.edu)
 
 ## Dependencies
-**Supported OSes:** Linux, Mac (MATLAB Windows support coming in the future)  
+**Supported OSes:** Linux, Mac (MATLAB Windows support not planned at this time)  
 **MATLAB Versions:** R2015a and higher (see https://www.mathworks.com/products/matlab.html for download and more info; student version from $99 USD; check w/ university for possible university-wide license)  
 **MATLAB Toolboxes:** Parallel Computing, Statistics and Machine Learning, Curve Fitting, Image Processing  
 **CGAL (for advanced particle morphological calculations):** https://www.cgal.org/download.html  

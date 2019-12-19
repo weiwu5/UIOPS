@@ -69,6 +69,7 @@ numCPU = 1; % will need only 1 CPU to process particle properties
 framesPerCPU = 100000; % max # image records to process per CPU
 createAspectRatio = 0; % do not output particle length/width using rectangle and ellipse fits
 calcAllDiodeStats = 0; % do not output shadowed diode stats on a per-particle basis
+useTASRatio = 0; % adjusts particle images affected by incorrect probe TAS
 
 flightFilename = [fileDirectory, 'flightData_', date, '.cdf'];
 
@@ -79,6 +80,6 @@ for iter=1:length(probeName) % loop over desired probes
     inFilename = [fileDirectory, probeName{iter}, '.', date, '_subset.V.cdf'];
     outFilename = [fileDirectory, 'files/proc', probeName{iter}, '.', date, '_subset.V.cdf'];
 
-    imgProc_sm(inFilename, outFilename, probeName{iter}, numCPU,...
-        framesPerCPU, projectName, createAspectRatio, calcAllDiodeStats, flightFilename)
+    imgProc_sm(inFilename, outFilename, probeName{iter}, numCPU, framesPerCPU,...
+        projectName, createAspectRatio, calcAllDiodeStats, useTASRatio, flightFilename)
 end
