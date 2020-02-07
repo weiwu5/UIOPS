@@ -23,23 +23,20 @@ function read_binary_SPEC(infilename, outfilename, varargin)
 %       (e.g., '/path/imgData.date.2DS') varargin: Optional arguments,
 %       separated by commas, containing an array of 1-HZ flight times and
 %       true airspeed values
-%               flt_time: Array of times in HHMMSS format
+%               flt_time: Array of times in HHMMSS (00 UTC will have value
+%                       of 0)
 %               flt_tas: Array of true airspeeds [m/s]
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Added support for probe TAS ratio calculation ~ Joe Finlon 11/3/19,
 % 02/07/20
 if ~isempty(varargin)
-    fltTime1 = varargin{1}; % aircraft time in HHMMSS ~ Joe Finlon 02/07/20
+    fltTime = varargin{1}; % aircraft time in HHMMSS ~ Joe Finlon 02/07/20
     fltTAS = varargin{2}; % aircraft TAS in m/s
     fltTAS_fixed = interp_tas(fltTAS); % fix bad TAS values through linear interpolation
     %tasFile = varargin{1}; % path to aircraft TAS information
     %fltTAS = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
     %fltTime1 = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
-    fltTime = fltTime1 * 0.0;
-    for iTASTime =1:length(fltTime1)
-        fltTime(iTASTime) = insec2hhmmss(fltTime1(iTASTime));
-    end
 end
 
 % Added support for probe time offset (e.g., SOCRATES) ~ Joe Finlon 11/3/19
