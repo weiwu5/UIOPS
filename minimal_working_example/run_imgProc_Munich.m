@@ -27,8 +27,18 @@ yr = [yr1; yr2]; mo = [mo1; mo2]; dy = [dy1; dy2]; hr = [hr1; hr2];
 mn = [mn1; mn2]; sec = [sec1; sec2]; ms = [ms1; ms2]; wk = [wk1; wk2];
 data = cat(3, data1, data2);
 
+versionID = fopen('version.txt', 'r');
+software_string = fscanf(versionID, '%s');
+fclose(versionID);
+
 f = netcdf.create([fileDirectory, '2DS.', date,...
     '_subset.V.cdf'], 'clobber');
+
+NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
+netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
+netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
+netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Vertical');
+
 dimid0 = netcdf.defDim(f,'time',size(data,3));
 dimid1 = netcdf.defDim(f,'ImgRowlen',size(data,1));
 dimid2 = netcdf.defDim(f,'ImgBlocklen',size(data,2));
@@ -69,9 +79,10 @@ numCPU = 1; % will need only 1 CPU to process particle properties
 framesPerCPU = 100000; % max # image records to process per CPU
 createAspectRatio = 0; % do not output particle length/width using rectangle and ellipse fits
 calcAllDiodeStats = 0; % do not output shadowed diode stats on a per-particle basis
-useTASRatio = 0; % adjusts particle images affected by incorrect probe TAS
 
 flightFilename = [fileDirectory, 'flightData_', date, '.cdf'];
+fltTime_HHMMSS = ncread(flightFilename, 'Time');
+fltTAS = ncread(flightFilename, 'TAS');
 
 %% Run imgProc_sm.m Script
 
@@ -81,5 +92,5 @@ for iter=1:length(probeName) % loop over desired probes
     outFilename = [fileDirectory, 'files/proc', probeName{iter}, '.', date, '_subset.V.cdf'];
 
     imgProc_sm(inFilename, outFilename, probeName{iter}, numCPU, framesPerCPU,...
-        projectName, createAspectRatio, calcAllDiodeStats, useTASRatio, flightFilename)
+        projectName, createAspectRatio, calcAllDiodeStats, fltTime_HHMMSS, fltTAS)
 end

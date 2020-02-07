@@ -1,4 +1,4 @@
-function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEllipse, iCalcAllDiodeStats, iTAS, varargin)
+function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEllipse, iCalcAllDiodeStats, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %  This function is the image processing part of OAP processing using
 %  distributed memory parallisation. The function use one simple interface
@@ -17,10 +17,10 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %    iRectEllipse: 0 - Do not process rectangle/ellipse fit dimensions; 1 - Process this info
 %    iCalcAllDiodeStats: 0 - Do not save diode stats for every particle (large
 %                        files); 1 - Save
-%    iTAS     :   0 - Pixel resolution in time dimension unaltered; 1 - Use
-%                 ratio between aircraft and probe TAS to correct time dimension
-%    varargin :   OPTIONAL argument for the aircraft TAS file name
-%                 (HVPS/2DS probes only)
+%    varargin :   OPTIONAL arguments for the 2DS/HVPS, in the following order:
+%                       tasTime:    Flight time in HHMMSS
+%                       tas:        Flight TAS in m/s
+%                       tasRatio:   Ratio between aircraft and probe TAS to correct time dimension
 %
 %  Note other important variables used in the program
 %    handles:  a structure to store information. It is convinient to use a
@@ -95,6 +95,8 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %          Improvements to hollow particle ID for spherical particles
 %          Support to correct 2DS/HVPS images that are affected by probe 
 %          TAS issues
+%    * Updated by Joe Finlon, 02/07/2020
+%          Changed how the optional flight time and TAS are read in
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
@@ -114,7 +116,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 
 fprintf('***********************************************************\n')
 fprintf('* UNIVERSITY OF ILLINOIS/OKLAHOMA OAP PROCESSING SOFTWARE *\n')
-fprintf('*                  Copyright (C) 2018                     *\n')
+fprintf('*                  Copyright (C) 2020                     *\n')
 fprintf('***********************************************************\n')
 fprintf('* This program is free software: you can redistribute it\n')
 fprintf('* and/or modify it under the terms of the GNU General Public \n')
@@ -176,11 +178,13 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			handles.diodenum  = 128; % Diode number
 			handles.current_image = 1;
 			probetype = 2;
-			% TAS file info - Added by Joe Finlon - 03/03/17
-			tasFile = varargin{1};
-			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
-			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
-			disp(['Using TAS data from ', tasFile])
+			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
+% 			tasFile = varargin{1};
+% 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+% 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+            tasTime = varargin{1}; % aircraft time in HHMMSS
+            tas = varargin{2}; % aircraft TAS in m/s
+			%disp(['Using TAS data from ', tasFile])
 			
 		case '2DS'
 			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
@@ -191,11 +195,13 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			handles.diodenum  = 128; % Diode number
 			handles.current_image = 1;
 			probetype = 2;
-			% TAS file info - Added by Joe Finlon - 03/03/17
-			tasFile = varargin{1};
-			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
-			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
-			disp(['Using TAS data from ', tasFile])
+			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
+% 			tasFile = varargin{1};
+% 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+% 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+            tasTime = varargin{1}; % aircraft time in HHMMSS
+            tas = varargin{2}; % aircraft TAS in m/s
+			%disp(['Using TAS data from ', tasFile])
             
         case 'Fast2DC' % Added support for Fast2DC ~ Joe Finlon 12/28/17
             boundary = [170, 170, 170];
@@ -206,7 +212,16 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			handles.diodenum  = 64;  % Diode number
 			handles.current_image = 1;
 			probetype = 3;
-	end
+    end
+    
+    % Read in the TAS probe ratio if the user wants to correct the time
+    % dimension of 2DS/HVPS images ~ Joe Finlon - 02/07/20
+    if length(varargin)==3
+        iTAS = 1;
+        tasRatio = varargin{3};
+    else
+        iTAS = 0;
+    end
 	
 	diodenum = handles.diodenum;
 	byteperslice = diodenum/8;
@@ -224,13 +239,19 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	
 	
 	%% Create output NETCDF file and variables
+    % Added dynamic software version to netCDF metadata - Joe Finlon
+    % 02/07/20
+    versionID = fopen('version.txt', 'r');
+    software_string = fscanf(versionID, '%s');
+    fclose(versionID);
+    
 	f = netcdf.create(outfile, 'NETCDF4'); % netCDF-4/HDF5 compression support - Added by Joe Finlon 02/13/19
 	dimid0 = netcdf.defDim(f,'time',netcdf.getConstant('NC_UNLIMITED'));
 	dimid1 = netcdf.defDim(f,'pos_count',2);
 	dimid2 = netcdf.defDim(f,'bin_count',diodenum);
 	
 	NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
-	netcdf.putAtt(f, NC_GLOBAL, 'Software', 'UIOPS v3.3');
+	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
 % 	netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
 	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
 	netcdf.putAtt(f, NC_GLOBAL, 'Description', ['Contains size, morphological, ',...
@@ -548,9 +569,10 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
         end
         
         % Optionally use TAS ratio between the probe value and the aircraft
-        % value ~ Joe Finlon 11/3/19
+        % value ~ Joe Finlon 11/3/19, 02/07/20
         if iTAS==1
-            handles.tasRatio = netcdf.getVar(handles.f, netcdf.inqVarID(handles.f, 'tasRatio'), i-1, 1);
+            %handles.tasRatio = netcdf.getVar(handles.f, netcdf.inqVarID(handles.f, 'tasRatio'), i-1, 1);
+            handles.tasRatio = tasRatio(i);
         else
             handles.tasRatio = 1.0;
         end

@@ -16,14 +16,26 @@ function read_binary_SPEC(infilename, outfilename, varargin)
 %               Joe Finlon & Wei Wu, 11/3/2019
 %   * Support for applying time offset correction (e.g., SOCRATES)
 %               Joe Finlon, 11/3/2019
+%   * Changed how the optional flight time and TAS are read in
+%               Joe Finlon, 02/07/2020
+%   Interface:
+%       infilename: The input file name outfilename: The output file name
+%       (e.g., '/path/imgData.date.2DS') varargin: Optional arguments,
+%       separated by commas, containing an array of 1-HZ flight times and
+%       true airspeed values
+%               flt_time: Array of times in HHMMSS format
+%               flt_tas: Array of true airspeeds [m/s]
 %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Added support for probe TAS ratio calculation ~ Joe Finlon 11/3/19
+% Added support for probe TAS ratio calculation ~ Joe Finlon 11/3/19,
+% 02/07/20
 if ~isempty(varargin)
-    tasFile = varargin{1}; % path to aircraft TAS information
-    fltTAS = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+    fltTime1 = varargin{1}; % aircraft time in HHMMSS ~ Joe Finlon 02/07/20
+    fltTAS = varargin{2}; % aircraft TAS in m/s
     fltTAS_fixed = interp_tas(fltTAS); % fix bad TAS values through linear interpolation
-    fltTime1 = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
+    %tasFile = varargin{1}; % path to aircraft TAS information
+    %fltTAS = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
+    %fltTime1 = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
     fltTime = fltTime1 * 0.0;
     for iTASTime =1:length(fltTime1)
         fltTime(iTASTime) = insec2hhmmss(fltTime1(iTASTime));
@@ -31,8 +43,8 @@ if ~isempty(varargin)
 end
 
 % Added support for probe time offset (e.g., SOCRATES) ~ Joe Finlon 11/3/19
-if length(varargin) == 2
-   timeOffset = varargin{2}; % user-specified probe time offset [seconds]
+if length(varargin) == 3
+   timeOffset = varargin{3}; % user-specified probe time offset [seconds]
 end
 
 starpos = find(infilename == '*',1,'last');
@@ -60,12 +72,28 @@ for i = 1:filenums
     outfilename2=[outfilename, '.V.nc'];
     
     fid=fopen(infilename,'r','l');
+    
+    % Added dynamic software version to netCDF metadata - Joe Finlon
+    % 02/07/20
+    versionID = fopen('version.txt', 'r');
+    software_string = fscanf(versionID, '%s');
+    fclose(versionID);
 
     f = netcdf.create(outfilename1, 'NETCDF4'); % netCDF-4/HDF5 compression support - Added by Joe Finlon 02/13/19
     
     dimid0 = netcdf.defDim(f,'time',netcdf.getConstant('NC_UNLIMITED'));
     dimid1 = netcdf.defDim(f,'ImgRowlen',8);
     dimid2 = netcdf.defDim(f,'ImgBlocklen',1700);
+    
+    NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
+	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
+    netcdf.putAtt(f, NC_GLOBAL, 'Data Contact', 'Joseph Finlon (jfinlon@uw.edu)');
+    netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'University of Washington');
+	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
+    netcdf.putAtt(f, NC_GLOBAL, 'Version', '1');
+	%netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
+	netcdf.putAtt(f, NC_GLOBAL, 'Image Source', infilename);
+	netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Horizontal');
     
     % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
     varid0 = netcdf.defVar(f,'year','short',dimid0); netcdf.defVarDeflate(f, varid0, true, true, 9);
@@ -86,6 +114,16 @@ for i = 1:filenums
     dimid01 = netcdf.defDim(f1,'time',netcdf.getConstant('NC_UNLIMITED'));
     dimid11 = netcdf.defDim(f1,'ImgRowlen',8);
     dimid21 = netcdf.defDim(f1,'ImgBlocklen',1700);
+    
+    NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
+	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
+    netcdf.putAtt(f, NC_GLOBAL, 'Data Contact', 'Joseph Finlon (jfinlon@uw.edu)');
+    netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'University of Washington');
+	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
+    netcdf.putAtt(f, NC_GLOBAL, 'Version', '1');
+	%netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
+	netcdf.putAtt(f, NC_GLOBAL, 'Image Source', infilename);
+	netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Vertical');
     
     % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
     varid01 = netcdf.defVar(f1,'year','short',dimid01); netcdf.defVarDeflate(f1, varid01, true, true, 9);

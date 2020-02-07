@@ -58,6 +58,9 @@
 %           Joe Finlon, 02/13/19
 %   * Fixed area-equivalent SD calculation
 %           Joe Finlon, 03/04/19
+%   * Added support for 1-Hz inter-arrival time thresholds
+%     Added probe-specific defaults for the IMPACTS campaign
+%           Joe Finlon, 02/07/20
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -69,13 +72,15 @@
 %    SAmethod:      0: Center in; 1: Entire in; 2: With Correction
 %    Pres:          1 second pressure data
 %    Temp:          1 second temperature data
-%    iaThreshType:  0: Campaign/probe default; 1: Time-dependent; 2: Spiral-dependent
+%    iaThreshType:  0: Campaign/probe default; 1: Time-dependent; 2: Spiral-dependent; 3: 1-Hz threshold
 %    iCreateAspectRatio:    0: Do not process aspect ratio info; 1: Process this info
 %    iCreateBad:    0: Do not save info on rejected particles, inc. PSDs; 1: Save info
 %    iSaveIntArrSV: 0: Do not save info on inter-arrival time and sample volume, inc. PSDs; 1: Save info
 %    projectname:   Project name, string
 %    ddate:         Date to be analyzed, string (YYYYMMDD)
-%    varargin:      [OPTIONAL] String containing file path for time-dependent inter-arrival threshold data
+%    varargin:      [OPTIONAL] String containing file path for
+%           time-dependent inter-arrival threshold data, or array of length(tas)
+%           with threshold values in seconds
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmethod, Pres, Temp, iaThreshType, iCreateAspectRatio, iCreateBad, iSaveIntArrSV, projectname, ddate, varargin)
@@ -87,7 +92,12 @@ function sizeDist(infile, outfile, tas, timehhmmss, probename, d_choice, SAmetho
 % Can be implemented if a time-dependent threshold is required - add 'varargin' to arguments in function header above
 
 if length(varargin) == 1
-	iaThreshFile = varargin{1};
+    if iaThreshType==1
+        iaThreshFile = varargin{1};
+    elseif iaThreshType==3
+        iaThreshFile = 'NONE';
+        iatThresh = varargin{1};
+    end
 elseif length(varargin)>1
 	display('You have added too many inputs!')
 	iaThreshFile = 'NONE';
@@ -348,6 +358,55 @@ switch projectname
                 
         end
         
+    case 'IMPACTS'
+        switch probename
+            case '2DS'
+                num_diodes =128;
+                diodesize = .010;
+                armdst=63.;
+                num_bins = 256;
+                kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+%                 num_bins =22;
+%                 kk=[40.0    60.0    80.0   100.0   125.0   150.0   200.0   250.0   300.0   350.0   400.0 ...
+%                     475.0   550.0   625.0   700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000;
+                probetype=2;
+                tasMax=170;
+                
+                % Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
+				% **Values here may not be correct** 
+				% The interarrival threshold can be modifided to change second-by-second if desired
+                applyIntArrThresh = 1;
+					defaultIntArrThresh = 1e-6;
+				reaccptShatrs = 1;
+					reaccptD = 0.5;
+                    %reaccptMaxIA = 1e-7; % (Slice size [m])/(avg. airspeed [m/s])
+					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
+                                               
+            case 'HVPS'
+                % For the HVPS
+                num_diodes =128;
+                diodesize = .150;
+                armdst=161.;
+                num_bins =192;
+                kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+%                 num_bins = 28;
+%                 kk=[200.0   400.0   600.0   800.0  1000.0  1200.0  1400.0  1600.0  1800.0  2200.0  2600.0 ...
+%                      3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0 10000.0 ...
+%                      12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000;
+                probetype=2;
+                tasMax=170;
+                
+                % Interarrival threshold and reaccept max interarrival time are often flight-/instrument-specific
+				% **Values here may not be correct** 
+				% The interarrival threshold can be modifided to change second-by-second if desired
+                applyIntArrThresh = 0;
+					defaultIntArrThresh = 1e-6;
+				reaccptShatrs = 0;
+					reaccptD = 0.5; 
+					reaccptMaxIA = 1e-6; % (Slice size [m])/(avg. airspeed [m/s])
+                
+        end
+        
     otherwise
         switch probename
             case 'HVPS'
@@ -360,7 +419,7 @@ switch projectname
                      3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0 10000.0 ...
                      12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000;
                 %num_bins =128;
-                %kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
+                %kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
                 probetype=2;
                 tasMax=170; 
 				
@@ -380,13 +439,12 @@ switch projectname
                 num_diodes =128;
                 diodesize = .010;
                 armdst=63.;
-                %num_bins = 28;
-                %kk=[200.0   400.0   600.0   800.0  1000.0  1200.0  1400.0  1600.0  1800.0  2200.0  2600.0 ...
-                %     3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0 10000.0 ...
-                %     12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000/15;
-                num_bins =128;
-                %kk=diodesize/2:diodesize:(num_bins+0.5)*diodesize;
-                kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins = 28;
+                kk=[200.0   400.0   600.0   800.0  1000.0  1200.0  1400.0  1600.0  1800.0  2200.0  2600.0 ...
+                    3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0 10000.0 ...
+                    12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000;
+                %num_bins =128;
+                %kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
                 probetype=2;
                 tasMax=170;  
 				
@@ -1256,7 +1314,73 @@ for i=1:length(tas)
             loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
 			loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
         end
+        %% Time-varying, 1-Hz inter-arrival time threshold shatter identification and removal ~ Added by Joe Finlon - 02/07/20
+        if iaThreshType == 3 && applyIntArrThresh && length(varargin) == 1
+            if ((length(int_arr) == 1) && (int_arr(1) <= iatThresh(i)))
+				auto_reject(1) = 'S';
+            else
+                if int_arr(1) <= iatThresh(i)
+					auto_reject(1) = 'S';
+                end
+		
+                for ix = 2:length(int_arr)
+					if int_arr(ix) <= iatThresh(i)
+						auto_reject((ix-1):ix) = 'S';
+					end
+                end
+            end
+            
+            % Experimental option to reaccept particles flagged as shattered which may in fact be the result of diffraction
+			% fringes
+			% Added by Dan Stechman - 6/8/2015 & Modified by Joe Finlon - 03/03/17 - with base code by Wei Wu
+			if reaccptShatrs
+				% Start by defining the indices for the beginning and end of individual shattering events
+				rBegin = ((int_arr > iatThresh(i) & int_arr3 < iatThresh(i)));
+				rEnd = ((int_arr < iatThresh(i) & int_arr3 > iatThresh(i)));
+				
+				maxParticle = reaccptD;
+				eIndex = [];
+				
+				% We search through each individual set of shattering events and check to see if any of the particles are both
+				% larger than the reacceptance diameter and have an interarrival time less than the reacceptance threshold as we'd
+				% expect diffraction fringes to be larger than shattered particles and to have a particularly small interarrival time
+                for iEvent = find(rBegin):find(rEnd)
+					if ((particle_diameter_minR(iEvent) > maxParticle) && (int_arr(iEvent) < reaccptMaxIA))
+						maxParticle = particle_diameter_minR(iEvent);
+						eIndex = iEvent;
+					end
+                end
 
+				auto_reject(eIndex) = 'R';
+			end
+			
+        
+			% Following vars used for verifying shatter removal and reacceptance in external script - can be commented out if desired
+			
+            shatterLocs = find(auto_reject == 'S');
+			shatterIA = int_arr(shatterLocs);
+			shatterTimes = Time_in_seconds(shatterLocs);
+            shatterDiam = particle_diameter_minR(shatterLocs);
+            
+			shatrReject_times = vertcat(shatrReject_times, shatterTimes);
+			shatrReject_intArr = vertcat(shatrReject_intArr, shatterIA);
+            shatrReject_diam = vertcat(shatrReject_diam, shatterDiam);
+            
+            rccptLocs = find(auto_reject == 'R');
+			rccptIA = int_arr(rccptLocs);
+			rccptTimes = Time_in_seconds(rccptLocs);
+            rccptDiam = particle_diameter_minR(rccptLocs);
+            
+			rccptReject_times = vertcat(rccptReject_times, rccptTimes);
+			rccptReject_intArr = vertcat(rccptReject_intArr, rccptIA);
+            rccptReject_diam = vertcat(rccptReject_diam, rccptDiam);
+            
+                        
+			loopedTimes = vertcat(loopedTimes, Time_in_seconds);
+			loopedIntArr = vertcat(loopedIntArr, int_arr);
+            loopedDiam = vertcat(loopedDiam, particle_diameter_minR);
+			loopedAutoRej = vertcat(loopedAutoRej, auto_reject);
+        end
         %% Apply rejection criteria and identify good and bad particles 
         % Modify the next line to include/exclude any particles you see fit. 
         
@@ -1829,6 +1953,10 @@ else
 	save([outfile(1:end-3) 'withShatters.mat']);
 end
 
+% Added dynamic software version to netCDF metadata - Joe Finlon 02/07/20
+versionID = fopen('version.txt', 'r');
+software_string = fscanf(versionID, '%s');
+fclose(versionID);
 
 % Define Dimensions
 dimid0 = netcdf.defDim(mainf,'CIPcorrlen',num_bins);
@@ -1838,7 +1966,7 @@ dimid3 = netcdf.defDim(mainf,'Habit',10);
 
 % Define Global Attributes
 NC_GLOBAL = netcdf.getConstant('NC_GLOBAL');
-netcdf.putAtt(mainf, NC_GLOBAL, 'Software', 'UIOOPS v3.3');
+netcdf.putAtt(mainf, NC_GLOBAL, 'Software', software_string);
 % netcdf.putAtt(mainf, NC_GLOBAL, 'Institution', 'Univ. Illinois, Dept. Atmos. Sciences');
 netcdf.putAtt(mainf, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
 netcdf.putAtt(mainf, NC_GLOBAL, 'Description', ['Contains size distributions of ',...
@@ -2170,6 +2298,13 @@ netcdf.putAtt(mainf, varid45,'long_name','sample volume for each bin');
 netcdf.defVarDeflate(mainf,varid45,true,true,9);
 end
 
+if exist('iatThresh','var') == 1 % Added by Joe Finlon ~ 02/07/20
+    varid46 = netcdf.defVar(mainf,'iat_threshold','double',dimid2);
+    netcdf.putAtt(mainf, varid46,'units','s');
+    netcdf.putAtt(mainf, varid46,'long_name','inter-arrival time threshold used to determine which particles are likely shattered artifacts');
+    netcdf.defVarDeflate(mainf,varid46,true,true,9);
+end
+
 netcdf.endDef(mainf)
 
 % Output Variables
@@ -2232,6 +2367,10 @@ if iSaveIntArrSV == 1
 % Inter-arrival time and sample volume information
 netcdf.putVar ( mainf, varid44, time_interval200');
 netcdf.putVar ( mainf, varid45, svol2);
+end
+
+if exist('iatThresh','var') == 1 % Added by Joe Finlon ~ 02/07/20
+    netcdf.putVar ( mainf, varid46, iatThresh);
 end
 
 netcdf.close(mainf) % Close output NETCDF file 
