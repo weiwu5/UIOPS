@@ -18,6 +18,8 @@ function read_binary_SPEC(infilename, outfilename, varargin)
 %               Joe Finlon, 11/3/2019
 %   * Changed how the optional flight time and TAS are read in
 %               Joe Finlon, 02/07/2020
+%   * Ensures the hour timestamp is less than 24 when saving to file
+%               Joe Finlon, 02/10/2020
 %   Interface:
 %       infilename: The input file name outfilename: The output file name
 %       (e.g., '/path/imgData.date.2DS') varargin: Optional arguments,
@@ -84,12 +86,8 @@ for i = 1:filenums
     
     NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
 	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
-    netcdf.putAtt(f, NC_GLOBAL, 'Data Contact', 'Joseph Finlon (jfinlon@uw.edu)');
-    netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'University of Washington');
 	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
-    netcdf.putAtt(f, NC_GLOBAL, 'Version', '1');
 	%netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
-	netcdf.putAtt(f, NC_GLOBAL, 'Image Source', infilename);
 	netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Horizontal');
     
     % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
@@ -114,12 +112,8 @@ for i = 1:filenums
     
     NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
 	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
-    netcdf.putAtt(f, NC_GLOBAL, 'Data Contact', 'Joseph Finlon (jfinlon@uw.edu)');
-    netcdf.putAtt(f, NC_GLOBAL, 'Institution', 'University of Washington');
 	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
-    netcdf.putAtt(f, NC_GLOBAL, 'Version', '1');
 	%netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
-	netcdf.putAtt(f, NC_GLOBAL, 'Image Source', infilename);
 	netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Vertical');
     
     % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
@@ -141,6 +135,7 @@ for i = 1:filenums
     previousTAS = -999; % Joe Finlon 11/3/19
     endfile = 0;
     nNext=1;
+    daystart = 99999999;
     dataprev=zeros(2048,1);
     recordTime = []; recordTime1 = []; % for use in TAS ratio calculation ~ Added by Joe Finlon 11/3/19
     
@@ -197,7 +192,10 @@ for i = 1:filenums
             for  mmm=1:8
                 img1(mmm,1:1700)=sixteen2int(imgH((mmm-1)*16+1:mmm*16,1:1700));
             end
-            
+            % Ensures the hour timestamp is less than 24 when saving to file ~ Added by Joe Finlon 02/10/20
+            if hour>=24
+                hour = hour - 24;
+            end
             netcdf.putVar ( f, varid0, kk1-1, 1, year );
             netcdf.putVar ( f, varid1, kk1-1, 1, month );
             netcdf.putVar ( f, varid2, kk1-1, 1, day );
@@ -222,7 +220,10 @@ for i = 1:filenums
             for  mmm=1:8
                 img2(mmm,1:1700)=sixteen2int(imgV((mmm-1)*16+1:mmm*16,1:1700));
             end
-            
+            % Ensures the hour timestamp is less than 24 when saving to file ~ Added by Joe Finlon 02/10/20
+            if hour>=24
+                hour = hour - 24;
+            end
             netcdf.putVar ( f1, varid01, kk2-1, 1, year );
             netcdf.putVar ( f1, varid11, kk2-1, 1, month );
             netcdf.putVar ( f1, varid21, kk2-1, 1, day );
@@ -265,7 +266,7 @@ end
 
 end
 
-function [year,month, wkday,day, hour, minute, second, millisec, data, discard]=readRecord(fid)
+function [year,month, wkday,day, hour, minute, second, millisec, data, discard, daystart]=readRecord(fid, daystart)
 
         year=fread(fid,1,'uint16');
         month=fread(fid,1,'uint16');
