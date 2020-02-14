@@ -20,6 +20,8 @@ function read_binary_SPEC(infilename, outfilename, varargin)
 %               Joe Finlon, 02/07/2020
 %   * Ensures the hour timestamp is less than 24 when saving to file
 %               Joe Finlon, 02/10/2020
+%	* Small fix to global attributes
+%				Joe Finlon, 02/12/2020
 %   Interface:
 %       infilename: The input file name outfilename: The output file name
 %       (e.g., '/path/imgData.date.2DS') varargin: Optional arguments,
@@ -111,10 +113,10 @@ for i = 1:filenums
     dimid21 = netcdf.defDim(f1,'ImgBlocklen',1700);
     
     NC_GLOBAL = netcdf.getConstant('NC_GLOBAL'); % Added file attributes ~ Joe Finlon 02/07/20
-	netcdf.putAtt(f, NC_GLOBAL, 'Software', software_string);
-	netcdf.putAtt(f, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
-	%netcdf.putAtt(f, NC_GLOBAL, 'Project', projectname);
-	netcdf.putAtt(f, NC_GLOBAL, 'Probe Channel_Orientation', 'Vertical');
+	netcdf.putAtt(f1, NC_GLOBAL, 'Software', software_string);
+	netcdf.putAtt(f1, NC_GLOBAL, 'Creation Time', datestr(now, 'yyyy/mm/dd HH:MM:SS'));
+	%netcdf.putAtt(f1, NC_GLOBAL, 'Project', projectname);
+	netcdf.putAtt(f1, NC_GLOBAL, 'Probe Channel_Orientation', 'Vertical');
     
     % Added data compression using 'defVarDeflate' argument ~ Joe Finlon 02/13/19
     varid01 = netcdf.defVar(f1,'year','short',dimid01); netcdf.defVarDeflate(f1, varid01, true, true, 9);
