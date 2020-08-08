@@ -61,6 +61,8 @@
 %   * Added support for 1-Hz inter-arrival time thresholds
 %     Added probe-specific defaults for the IMPACTS campaign
 %           Joe Finlon, 02/07/20
+%   * Enhancements to how significant dead time is handled
+%           Joe Finlon, 08/07/20
 %
 %  Usage: 
 %    infile:   Input filename, string
@@ -364,11 +366,12 @@ switch projectname
                 num_diodes =128;
                 diodesize = .010;
                 armdst=63.;
-                num_bins = 256;
-                kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
-%                 num_bins =22;
-%                 kk=[40.0    60.0    80.0   100.0   125.0   150.0   200.0   250.0   300.0   350.0   400.0 ...
-%                     475.0   550.0   625.0   700.0   800.0   900.0  1000.0  1200.0  1400.0  1600.0  1800.0  2000.0]/1000;
+                %num_bins = 256;
+                %kk = diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins =29;
+                kk=[20.0    40.0    60.0    80.0   100.0   125.0   150.0   200.0   250.0   300.0   350.0   400.0 ...
+                    475.0   550.0   625.0   700.0  800.0   900.0   1000.0  1200.0  1400.0  1600.0  1800.0  2000.0 ...
+					2200.0  2400.0  2600.0  2800.0 3000.0 3200.0]/1000;
                 probetype=2;
                 tasMax=170;
                 
@@ -387,12 +390,12 @@ switch projectname
                 num_diodes =128;
                 diodesize = .150;
                 armdst=161.;
-                num_bins =192;
-                kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
-%                 num_bins = 28;
-%                 kk=[200.0   400.0   600.0   800.0  1000.0  1200.0  1400.0  1600.0  1800.0  2200.0  2600.0 ...
-%                      3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0 10000.0 ...
-%                      12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000;
+                %num_bins =192;
+                %kk=diodesize/2:diodesize:(num_bins+0.6)*diodesize;
+                num_bins = 28;
+                kk=[200.0   400.0   600.0   800.0   1000.0  1200.0  1400.0  1600.0  1800.0  2200.0  2600.0 ...
+                	3000.0  3400.0  3800.0  4200.0  4600.0  5000.0  6000.0  7000.0  8000.0  9000.0  10000.0 ...
+                	12000.0 14000.0 16000.0 18000.0 20000.0 25000.0 30000.0]/1000;
                 probetype=2;
                 tasMax=170;
                 
@@ -1052,12 +1055,15 @@ for i=1:length(tas)
             time_interval72(i) = sum(DMT_DOF_SPEC_OVERLOAD(rec_start))/1000.; % total overload time for the current time period [sec]
         else
             time_interval72(i) = sum(int_arr(DMT_DOF_SPEC_OVERLOAD~=0));
-            % EXPERIMENTAL correction for 2DS/HVPS if overload sum exceeds 1 sec ~
-            % Joe Finlon 02/09/18
-            if (probetype==2) && (time_interval72(i)>1)
-                fprintf(2, 'Sum of overloaded particles at index %d (%.2f sec) exceeds 1 sec. Resetting to 0.\n\n', ...
+            % Give warning if dead time exceeds 0.8 sec ~ Joe Finlon
+            % 08/07/20
+            if (probetype==2) && (time_interval72(i)>0.8)
+                fprintf(2, 'Sum of overloaded particles at index %d (%.2f sec) exceeds 0.8 sec. Use caution when interpreting results.\n\n', ...
                     i, time_interval72(i));
-                time_interval72(i) = 0;
+                if time_interval72(i)>1 % Dead time shouldn't be > 1. Resulting PSD will be invalid. ~ Joe Finlon
+            % 08/07/20
+                    time_interval72(i) = 1;
+                end
             end
         end
         
