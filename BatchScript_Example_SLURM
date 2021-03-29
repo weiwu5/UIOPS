@@ -1,0 +1,28 @@
+#!/bin/sh
+#SBATCH --job-name=uiops_PECAN_20150706
+#SBATCH --output=uiops_PECAN_20150706.o%j
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=stechma2@illinois.edu
+#SBATCH -p d,g,e,f
+#SBATCH -N 1
+#SBATCH -n 12
+#SBATCH --mem-per-cpu=16000
+#SBATCH --time=24:00:00
+
+export OMP_NUM_THREADS=12
+cd /data/pecan/a/stechma2/pecan/mp-data/IProcessingRelease
+
+
+#usage: automaticPECANprocessing_CL.py [-h] [-C] [-P] [-D] [-I] [-S] ddate
+#
+#positional arguments:
+#  ddate             date of the flight to be processed in YYYYMMDD
+#
+#optional arguments:
+#  -h, --help        show this help message and exit
+#  -C, --runCIP      process CIP data
+#  -P, --runPIP      process PIP data
+#  -D, --decompress  run raw image file decompression
+#  -I, --imgProc     run particle-by-particle processing
+#  -S, --sizeDist    run size distribution processing
+stdbuf -oL python automaticPECANprocessing_CL.py 20150706 -C -P -I
