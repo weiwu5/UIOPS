@@ -1,4 +1,4 @@
-function read_binary_SPEC(infilename, outfilename, varargin)
+function read_binary_3VCPI(infilename, outfilename, varargin)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
 %% Read the raw base*.2DS file, and then write into NETCDF file 
@@ -102,8 +102,8 @@ for i = 1:filenums
     varid6 = netcdf.defVar(f,'millisec','short',dimid0); netcdf.defVarDeflate(f, varid6, true, true, 9);
     varid7 = netcdf.defVar(f,'wkday','byte',dimid0); netcdf.defVarDeflate(f, varid7, true, true, 9);
     varid8 = netcdf.defVar(f,'data','int',[dimid1 dimid2 dimid0]); netcdf.defVarDeflate(f, varid8, true, true, 9);
-    varid9 = netcdf.defVar(f,'tas','double',dimid0); netcdf.defVarDeflate(f, varid9, true, true, 9); netcdf.defVarFill(f , varid9, false, -999.);
-    varid10 = netcdf.defVar(f,'tasRatio','double',dimid0); netcdf.defVarDeflate(f, varid10, true, true, 9);
+    %varid9 = netcdf.defVar(f,'tas','double',dimid0); netcdf.defVarDeflate(f, varid9, true, true, 9); netcdf.defVarFill(f , varid9, false, -999.);
+    %varid10 = netcdf.defVar(f,'tasRatio','double',dimid0); netcdf.defVarDeflate(f, varid10, true, true, 9);
     netcdf.endDef(f)
         
     f1 = netcdf.create(outfilename2, 'NETCDF4');
@@ -128,8 +128,8 @@ for i = 1:filenums
     varid61 = netcdf.defVar(f1,'millisec','short',dimid01); netcdf.defVarDeflate(f1, varid61, true, true, 9);
     varid71 = netcdf.defVar(f1,'wkday','byte',dimid01); netcdf.defVarDeflate(f1, varid71, true, true, 9);
     varid81 = netcdf.defVar(f1,'data','int',[dimid11 dimid21 dimid01]); netcdf.defVarDeflate(f1, varid81, true, true, 9);
-    varid91 = netcdf.defVar(f1,'tas','double',dimid0); netcdf.defVarDeflate(f1, varid91, true, true, 9); netcdf.defVarFill(f1 , varid91, false, -999.);
-    varid101 = netcdf.defVar(f1,'tasRatio','double',dimid0); netcdf.defVarDeflate(f1, varid101, true, true, 9);
+    %varid91 = netcdf.defVar(f1,'tas','double',dimid0); netcdf.defVarDeflate(f1, varid91, true, true, 9); netcdf.defVarFill(f1 , varid91, false, -999.);
+    %varid101 = netcdf.defVar(f1,'tasRatio','double',dimid0); netcdf.defVarDeflate(f1, varid101, true, true, 9);
     netcdf.endDef(f1)
     
     kk1=1;
@@ -196,6 +196,13 @@ for i = 1:filenums
             for  mmm=1:8
                 img1(mmm,1:1700)=sixteen2int(imgH((mmm-1)*16+1:mmm*16,1:1700));
             end
+            img1_fix = fix_buffer(img1); % fix last particle in buffer
+            
+            % Ensures the hour timestamp is less than 24 when saving to file ~ Added by Joe Finlon 02/10/20
+            if hour>=24
+                hour = hour - 24;
+            end
+            
             netcdf.putVar ( f, varid0, kk1-1, 1, year );
             netcdf.putVar ( f, varid1, kk1-1, 1, month );
             netcdf.putVar ( f, varid2, kk1-1, 1, day );
@@ -204,11 +211,11 @@ for i = 1:filenums
             netcdf.putVar ( f, varid5, kk1-1, 1, second );
             netcdf.putVar ( f, varid6, kk1-1, 1, millisec );
             netcdf.putVar ( f, varid7, kk1-1, 1, wkday );
-            netcdf.putVar ( f, varid8, [0, 0, kk1-1], [8,1700,1], img1 );
-            netcdf.putVar ( f, varid9, kk1-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
-            if ~isempty(varargin)
-                netcdf.putVar ( f, varid10, kk1-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
-            end
+            netcdf.putVar ( f, varid8, [0, 0, kk1-1], [8,1700,1], img1_fix );
+            %netcdf.putVar ( f, varid9, kk1-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
+            %if ~isempty(varargin)
+                %netcdf.putVar ( f, varid10, kk1-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
+            %end
             
             kk1=kk1+1;
             if mod(kk1,1000) == 0
@@ -220,10 +227,13 @@ for i = 1:filenums
             for  mmm=1:8
                 img2(mmm,1:1700)=sixteen2int(imgV((mmm-1)*16+1:mmm*16,1:1700));
             end
+            img2_fix = fix_buffer(img2); % fix last particle in buffer
+            
             % Ensures the hour timestamp is less than 24 when saving to file ~ Added by Joe Finlon 02/10/20
             if hour>=24
                 hour = hour - 24;
             end
+            
             netcdf.putVar ( f1, varid01, kk2-1, 1, year );
             netcdf.putVar ( f1, varid11, kk2-1, 1, month );
             netcdf.putVar ( f1, varid21, kk2-1, 1, day );
@@ -232,11 +242,11 @@ for i = 1:filenums
             netcdf.putVar ( f1, varid51,  kk2-1, 1, second );
             netcdf.putVar ( f1, varid61, kk2-1, 1, millisec );
             netcdf.putVar ( f1, varid71, kk2-1, 1, wkday );
-            netcdf.putVar ( f1, varid81, [0, 0, kk2-1], [8,1700,1], img2 );
-            netcdf.putVar ( f1, varid91, kk2-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
-            if ~isempty(varargin)
-                netcdf.putVar ( f1, varid101, kk2-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
-            end
+            netcdf.putVar ( f1, varid81, [0, 0, kk2-1], [8,1700,1], img2_fix );
+            %netcdf.putVar ( f1, varid91, kk2-1, 1, imgTAS); % Added variable ~ Joe Finlon 11/3/19
+            %if ~isempty(varargin)
+                %netcdf.putVar ( f1, varid101, kk2-1, 1, tasRatio); % Added variable ~ Joe Finlon 11/3/19
+            %end
 
             kk2=kk2+1;
             if mod(kk2,1000) == 0
@@ -318,18 +328,16 @@ function [imgH, imgV, nNext, tas, tasPrev]=get_img(buf, timehhmmss, outfilename,
               iii=iii+5;
               if bHTiming~=0 || bVTiming~=0     
                   iii=iii+nH+nV;
-%               elseif nH~=0
-              elseif nH~=0 && iii+nH-1<=length(buf) % Watch for index outside of image buffer - Added by Joe Finlon - 03/08/17
+              elseif nH>1 && iii+nH-1<=length(buf) % EXPERIMENTAL for 3VCPI
+                  nH = nH - 1; % based on soda2 tvcpi_read_frame routine
                   jjj=1;
                   kkk=0;
-%                   while jjj<=nS && kkk<nH-2 % Last two slice is time
                   while iii+kkk<=length(buf) && jjj<=nS && kkk<nH-2 % Added by Joe Finlon - Last 2 slices is the time - 03/08/17
                       aa=bitand(buf(iii+kkk),16256)/2^7;  %bin2dec('0011111110000000')
                       bb=bitand(buf(iii+kkk),127); %bin2dec('0000000001111111')
                       imgH(min(128,bb+1):min(aa+bb,128),iSlice+jjj)=1;
                       bBase=min(aa+bb,128);
                       kkk=kkk+1;
-%                       while( bitand(buf(iii+kkk),16384)==0  && kkk<nH-2) % bin2dec('1000000000000000')
                       while( iii+kkk<=length(buf) && bitand(buf(iii+kkk),16384)==0  && kkk<nH-2) % Added by Joe Finlon - 03/08/17
                           aa=bitand(buf(iii+kkk),16256)/2^7;
                           bb=bitand(buf(iii+kkk),127);
@@ -344,7 +352,7 @@ function [imgH, imgV, nNext, tas, tasPrev]=get_img(buf, timehhmmss, outfilename,
                   imgH(:,iSlice-1)='10101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010';
                   imgH(:,iSlice-1)=imgH(:,iSlice-1)-48;
                   imgH(:,iSlice)=1;
-                  tParticle=buf(iii+nH-2)*2^16+buf(iii+nH-1);
+                  tParticle=buf(iii+nH-1)*2^16+buf(iii+nH-2); % last two words swapped for 3VCPI
                   imgH(:,iSlice)=dec2bin(tParticle,128)-48;
                   imgH(97:128,iSlice)=dec2bin(tParticle,32)-48;
                   imgH(49:64,iSlice)=dec2bin(NHWord,16)-48;
@@ -352,18 +360,16 @@ function [imgH, imgV, nNext, tas, tasPrev]=get_img(buf, timehhmmss, outfilename,
                   imgH(81:96,iSlice)=dec2bin(nS,16)-48;
                   iii=iii+nH;
 
-%               elseif nV~=0
-              elseif nV~=0 && iii+nV-1<=length(buf) % Watch for index outside of image buffer - Added by Joe Finlon - 03/08/17
+              elseif nV>1 && iii+nV-1<=length(buf) % EXPERIMENTAL for 3VCPI
+                  nV = nV - 1; % based on soda2 tvcpi_read_frame routine
                   jjj=1;
                   kkk=0;
-%                   while jjj<=nS && kkk<nV-2 % Last two slice is time
                   while iii+kkk<=length(buf) && jjj<=nS && kkk<nV-2 % Added by Joe Finlon - Last 2 slices is the time - 03/08/17
                       aa=bitand(buf(iii+kkk),16256)/2^7;  %bin2dec('0011111110000000')
                       bb=bitand(buf(iii+kkk),127); %bin2dec('0000000001111111')
                       imgV(min(128,bb+1):min(aa+bb,128),iSlice+jjj)=1;
                       bBase=min(aa+bb,128);
                       kkk=kkk+1;
-%                       while( bitand(buf(iii+kkk),16384)==0  && kkk<nV-2) % bin2dec('1000000000000000')
                       while( iii+kkk<=length(buf) && bitand(buf(iii+kkk),16384)==0  && kkk<nV-2) % Added by Joe Finlon - 03/08/17
                           aa=bitand(buf(iii+kkk),16256)/2^7;
                           bb=bitand(buf(iii+kkk),127);
@@ -378,7 +384,7 @@ function [imgH, imgV, nNext, tas, tasPrev]=get_img(buf, timehhmmss, outfilename,
                   imgV(:,iSlice-1)='10101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010';
                   imgV(:,iSlice-1)=imgV(:,iSlice-1)-48;
                   imgV(:,iSlice)=1;
-                  tParticle=buf(iii+nV-2)*2^16+buf(iii+nV-1);
+                  tParticle=buf(iii+nV-1)*2^16+buf(iii+nV-2); % last two words swapped for 3VCPI
                   imgV(:,iSlice)=dec2bin(tParticle,128)-48;
                   imgV(97:128,iSlice)=dec2bin(tParticle,32)-48;
                   imgV(49:64,iSlice)=dec2bin(NVWord,16)-48;
@@ -456,6 +462,118 @@ tasNew = tasValues;
 good = find((tasValues>0) & ~isnan(tasValues)); bad = find((tasValues==0) | isnan(tasValues));
 if ~isempty(bad)
     tasNew(bad) = interp1(good, tasValues(good), bad);
+end
+
+end
+
+function buf_new = fix_buffer(buf_dec)
+
+buf_dec = buf_dec'; % mSlices x nWords
+
+% get start inds, end inds, boundary inds
+boundary = [43690 43690 43690 43690 43690 43690 43690 43690];
+startInd = []; endInd = []; boundaryInd = []; j = 1;
+while (buf_dec(j, 1) ~= -1) && (j < size(buf_dec, 1))
+    if (isequal(buf_dec(j, :), boundary)) && (buf_dec(j + 1, 1) == 0)
+        boundaryInd(end + 1) = j;
+        if j > 1
+            endInd(end + 1) = j - 1;
+        end
+        startInd(end + 1) = j + 2;
+    end
+    j = j + 1;
+end
+if (~isempty(boundaryInd)) && (boundaryInd(1) > 1)
+    startInd = [1 startInd];
+    if (boundaryInd(end) + 3) < size(buf_dec, 1)
+        endInd(end + 1) = size(buf_dec, 1);
+    end
+end
+
+corrupt = 0;
+if (numel(startInd) > 1) && (numel(startInd) == numel(endInd)) && (startInd(end-1) > 0) && (endInd(end-1) <= size(buf_dec, 1))
+    % convert last particle to binary representation for processing
+    img_dec = buf_dec(startInd(end-1):endInd(end-1), :);
+    img_dec(img_dec == -1) = 0;
+    img_dec = 65535 - img_dec; % 0: shadowed; 1: unshadowed
+    img_bin = [dec2bin(img_dec(:, 1), 16), dec2bin(img_dec(:, 2), 16), ...
+        dec2bin(img_dec(:, 3), 16), dec2bin(img_dec(:, 4), 16), ...
+        dec2bin(img_dec(:, 5), 16), dec2bin(img_dec(:, 6), 16), ...
+        dec2bin(img_dec(:, 7), 16), dec2bin(img_dec(:, 8), 16)];
+    
+    % look for possibly corrupted slice(s)
+    x = 1;
+    while (x < size(img_bin, 1)) && (corrupt == 0)
+        if x == 1
+            slicePrev = ones(1, 128);
+            slicePrev2 = ones(1, 128);
+        elseif x == 2
+            slicePrev = img_bin(1, :) - '0';
+            slicePrev2 = ones(1, 128);
+        else
+            slicePrev = img_bin(x - 1, :) - '0';
+            slicePrev2 = img_bin(x - 2, :) - '0';
+        end
+        sliceCur = img_bin(x, :) - '0';
+        sliceNext = img_bin(x + 1, :) - '0';
+        count = 0;
+        for y=1:128
+            % flag diode as possibly corrupt
+            if (sliceCur(y) == 0) && (slicePrev(y) == 1) && (sliceNext(y) == 1)
+                if y < 128
+                    count = count + 1;
+                elseif (y == 128) && (count > 4)
+                    corrupt = 1;
+                end
+            else
+                if count > 4
+                    corrupt = 1;
+                end
+                count = 0;
+            end
+        end
+        
+        if corrupt == 1
+            break
+        end
+        x = x + 1;
+    end
+    
+    if corrupt == 1
+        % remove erraneous pixels
+        sliceCur((sliceCur < slicePrev) & (sliceCur < sliceNext)) = 1;
+
+        % fill pixels that are missing but present on previous and next slices
+        sliceCur((sliceCur > slicePrev) & (sliceCur > sliceNext)) = 0;
+
+        % fill pixels that are missing on current and previous slices
+        bad_inds = (sliceCur == slicePrev) & (sliceCur > slicePrev2) & (sliceCur > sliceNext);
+        if sum(bad_inds) > 0
+            sliceCur(bad_inds) = 0;
+            slicePrev(bad_inds) = 0;
+        end
+        img_bin(x, :) = strrep(num2str(sliceCur), ' ', '');
+        % fix previous slice if needed
+        if x > 1
+            img_bin(x - 1, :) = strrep(num2str(slicePrev), ' ', '');
+        end
+        
+        % convert binary to decimal
+        img_dec_new = zeros(size(img_dec));
+        for x=1:size(img_dec, 1)
+            img_dec_new(x, :) = bin2dec([num2str(img_bin(x, 1:16)); num2str(img_bin(x, 17:32)); ...
+                num2str(img_bin(x, 33:48)); num2str(img_bin(x, 49:64)); num2str(img_bin(x, 65:80)); ...
+                num2str(img_bin(x, 81:96)); num2str(img_bin(x, 97:112)); num2str(img_bin(x, 113:128))]);
+        end
+
+        % change back to 0: unshadowed; 1: shadowed
+        buf_new = buf_dec';
+        buf_new(:, startInd(end-1):endInd(end-1)) = 65535 - img_dec_new';
+    else
+        buf_new = buf_dec';
+    end
+else
+    buf_new = buf_dec';
 end
 
 end

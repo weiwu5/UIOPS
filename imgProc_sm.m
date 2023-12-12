@@ -8,7 +8,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %    infile   :   The input file name
 %    outfile  :   The output file name
 %    probename:   One of the following: '2DC','2DP','CIP','PIP','HVPS',
-%                 '2DS', and 'Fast2DC'
+%                 '2DS', '3VCPI_H', '3VCPI_V', and 'Fast2DC'
 %    n        :   The nth chuck to be processed.
 %    nEvery   :   The individual chuck size. nChuck*nEvery shoudl equal the
 %                 total frame number
@@ -17,7 +17,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %    iRectEllipse: 0 - Do not process rectangle/ellipse fit dimensions; 1 - Process this info
 %    iCalcAllDiodeStats: 0 - Do not save diode stats for every particle (large
 %                        files); 1 - Save
-%    varargin :   OPTIONAL arguments for the 2DS/HVPS, in the following order:
+%    varargin :   OPTIONAL arguments for the 2DS/HVPS/3VCPI, in the following order:
 %                       tasTime:    Flight time in HHMMSS
 %                       tas:        Flight TAS in m/s
 %                       tasRatio:   Ratio between aircraft and probe TAS to correct time dimension
@@ -97,13 +97,15 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 %          TAS issues
 %    * Updated by Joe Finlon, 02/07/2020
 %          Changed how the optional flight time and TAS are read in
+%    * Updated by Joe Finlon, 04/18/2022, v3.4
+%          Added spericity parameter, 3VCPI support
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Setting probe information according to probe type
 %    use ProbeType to indicate four types of probes:
 %       0: 2DC/2DP, 32 diodes, boundary 85,
 %       1: CIP/PIP, 64 diodes, boundary 170
-%       2: HVPS/2DS, 128 diodes, boundary 170
+%       2: HVPS/2DS/3VCPI, 128 diodes, boundary 170
 %       3: Fast2DC, 64 diodes, boundary 170 % Added support for Fast2DC ~ Joe Finlon 12/28
 	
 	
@@ -116,7 +118,7 @@ function imgProc_sm(infile, outfile, probename, n, nEvery, projectname, iRectEll
 
 fprintf('***********************************************************\n')
 fprintf('* UNIVERSITY OF ILLINOIS/OKLAHOMA OAP PROCESSING SOFTWARE *\n')
-fprintf('*                  Copyright (C) 2020                     *\n')
+fprintf('*                  Copyright (C) 2022                     *\n')
 fprintf('***********************************************************\n')
 fprintf('* This program is free software: you can redistribute it\n')
 fprintf('* and/or modify it under the terms of the GNU General Public \n')
@@ -133,7 +135,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			boundary = [255 255 255 255];
 			boundarytime = 85;
 			
-			ds = 0.025;			     % Size of diode in millimeters
+			ds = 0.03;			     % Size of diode in millimeters
 			handles.diodesize = ds;
 			handles.diodenum  = 32;  % Diode number
 			handles.current_image = 1;
@@ -179,12 +181,8 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			handles.current_image = 1;
 			probetype = 2;
 			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
-% 			tasFile = varargin{1};
-% 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
-% 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
             tasTime = varargin{1}; % aircraft time in HHMMSS
             tas = varargin{2}; % aircraft TAS in m/s
-			%disp(['Using TAS data from ', tasFile])
 			
 		case '2DS'
 			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
@@ -196,12 +194,34 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			handles.current_image = 1;
 			probetype = 2;
 			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
-% 			tasFile = varargin{1};
-% 			tas = ncread(tasFile, 'TAS'); % aircraft TAS in m/s
-% 			tasTime = ncread(tasFile, 'Time'); % aircraft time in HHMMSS
             tasTime = varargin{1}; % aircraft time in HHMMSS
             tas = varargin{2}; % aircraft TAS in m/s
-			%disp(['Using TAS data from ', tasFile])
+            
+        case '3VCPI_H'
+			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
+			boundarytime = 0;
+			
+			ds = 0.050;			     % Size of diode in millimeters
+			handles.diodesize = ds;
+			handles.diodenum  = 128; % Diode number
+			handles.current_image = 1;
+			probetype = 2;
+			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
+            tasTime = varargin{1}; % aircraft time in HHMMSS
+            tas = varargin{2}; % aircraft TAS in m/s
+            
+        case '3VCPI_V'
+			boundary = [43690, 43690, 43690, 43690, 43690, 43690, 43690, 43690];
+			boundarytime = 0;
+			
+			ds = 0.010;			     % Size of diode in millimeters
+			handles.diodesize = ds;
+			handles.diodenum  = 128; % Diode number
+			handles.current_image = 1;
+			probetype = 2;
+			% TAS file info - Added by Joe Finlon - 03/03/17, 02/07/20
+            tasTime = varargin{1}; % aircraft time in HHMMSS
+            tas = varargin{2}; % aircraft TAS in m/s
             
         case 'Fast2DC' % Added support for Fast2DC ~ Joe Finlon 12/28/17
             boundary = [170, 170, 170];
@@ -317,17 +337,17 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 	
 	varid5  = netcdf.defVar(f,'particle_time','int',dimid0);
 	netcdf.putAtt(f, varid5, 'Units', 'HHMMSS')
-	netcdf.putAtt(f, varid5, 'Description', 'Particle time (not available for 2DS/HVPS)')
+	netcdf.putAtt(f, varid5, 'Description', 'Particle time (not available for 2DS/HVPS/3VCPI)')
     netcdf.defVarDeflate(f, varid5, true, true, 9);
 	
 	varid6  = netcdf.defVar(f,'particle_millisec','short',dimid0);
 	netcdf.putAtt(f, varid6, 'Units', 'ms')
-	netcdf.putAtt(f, varid6, 'Description', 'Sub-second particle time (not available for 2DS/HVPS)')
+	netcdf.putAtt(f, varid6, 'Description', 'Sub-second particle time (not available for 2DS/HVPS/3VCPI')
     netcdf.defVarDeflate(f, varid6, true, true, 9);
 	
 	varid7  = netcdf.defVar(f,'particle_microsec','double',dimid0);
 	netcdf.putAtt(f, varid7, 'Units', 'microsec')
-	netcdf.putAtt(f, varid7, 'Description', 'Sub-second particle time (unitless clock count for 2DS/HVPS)')
+	netcdf.putAtt(f, varid7, 'Description', 'Sub-second particle time (unitless clock count for 2DS/HVPS/3VCPI)')
     netcdf.defVarDeflate(f, varid7, true, true, 9);
 	
 	varid8  = netcdf.defVar(f,'parent_rec_num','int',dimid0);
@@ -509,6 +529,11 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
     netcdf.putAtt(f, varid331, 'Units', '--')
     netcdf.putAtt(f, varid331, 'Description', 'Perim*Diam/Area following Holroyd (1987)')
     netcdf.defVarDeflate(f,varid331,true,true,9);
+    
+    varid332 = netcdf.defVar(f,'sphericity','double',dimid0); % added Joe Finlon 4/18/22
+    netcdf.putAtt(f, varid332, 'Units', '--')
+    netcdf.putAtt(f, varid332, 'Description', 'sqrt(area)/perim following McFarquhar et al. (2005)')
+    netcdf.defVarDeflate(f,varid332, true, true, 9);
 	
 	varid34 = netcdf.defVar(f,'area_hole_ratio','double',dimid0);
 	netcdf.putAtt(f, varid34, 'Units', '--')
@@ -656,7 +681,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                     c=[dec2bin(ind_matrix(:,1),8), dec2bin(ind_matrix(:,2),8),dec2bin(ind_matrix(:,3),8),dec2bin(ind_matrix(:,4),8), ...
                         dec2bin(ind_matrix(:,5),8), dec2bin(ind_matrix(:,6),8),dec2bin(ind_matrix(:,7),8),dec2bin(ind_matrix(:,8),8)];
                 elseif probetype==2
-                    ind_matrix(1:j-start,:) = 65535 - data(start:j-1,:); % I used 1 to indicate the illuminated doides for HVPS
+                    ind_matrix(1:j-start,:) = 65535 - data(start:j-1,:); % using 1 to indicate the illuminated doides for SPEC data
                     c=[dec2bin(ind_matrix(:,1),16), dec2bin(ind_matrix(:,2),16),dec2bin(ind_matrix(:,3),16),dec2bin(ind_matrix(:,4),16), ...
                         dec2bin(ind_matrix(:,5),16), dec2bin(ind_matrix(:,6),16),dec2bin(ind_matrix(:,7),16),dec2bin(ind_matrix(:,8),16)];
                 end
@@ -1061,6 +1086,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
                 end
                 images.AreaR(kk)=2*sqrt(images.image_area(kk)/3.1415926/handles.tasRatio);  % Calculate the Darea (area-equivalent diameter)
                 images.Perimeter(kk)=ParticlePerimeter(c)/sqrt(handles.tasRatio);
+                images.sphericity(kk) = sqrt(images.image_area/handles.tasRatio)/images.Perimeter; % Added Joe Finlon 4/18/22
                 
                 % perform Korolev correction ~ Wei Wu 11/3/19
                 if(images.auto_reject(kk)=='H')
@@ -1153,6 +1179,7 @@ fprintf('* PURPOSE. See the GNU General Public License for more details.\n\n')
 			netcdf.putVar ( f, varid32, wstart, w-wstart+1, images.sf);
 			netcdf.putVar ( f, varid33, wstart, w-wstart+1, int16(images.holroyd_habit));
             netcdf.putVar ( f, varid331, wstart, w-wstart+1, images.FS); % Added variable ~ Joe Finlon 11/3/19
+            netcdf.putVar ( f, varid332, wstart, w-wstart+1, images.sphericity); % Added Joe Finlon 4/18/22
 			netcdf.putVar ( f, varid34, wstart, w-wstart+1, images.area_hole_ratio);
 			netcdf.putVar ( f, varid35, wstart, w-wstart+1, images.int_arrival);
 			netcdf.putVar ( f, varid36, diode_stats );

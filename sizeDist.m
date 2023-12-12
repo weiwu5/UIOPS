@@ -1100,6 +1100,7 @@ for i=1:length(tas)
 
         %% Added by Robert Jackson -- old version did not have area ratio code
         area_ratio = area./(pi/4.*particle_diameter_minR.^2);
+        area_ratio(area_ratio > 1.) = 1. % Added by Joe Finlon 03/19/23
         auto_reject(area_ratio < .2) = 'z';
         
         %% Added by Will to calculate terminal velocity and precipitation rate
