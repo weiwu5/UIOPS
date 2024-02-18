@@ -4,7 +4,7 @@
 %    image_buffer - n x photodiodes/8 raw image buffer without timestamps
 % outputs:
 %    holroyd_habit - habit code as listed below
-function [holroyd_habit] = holroyd(handles, image_buffer)
+function [holroyd_habit, F_fine_detail] = holroyd(handles, image_buffer)
 
 %/***************************************************************/%
 %/*	Return code                                                */
@@ -27,87 +27,72 @@ function [holroyd_habit] = holroyd(handles, image_buffer)
 %/*	                                                           */
 %/***************************************************************/
 
-
 	image_size = size(image_buffer);
-    probe_resolution = .025;
+    probe_resolution = handles.diodesize;
 	n_slices  = image_size(1);
 	
-
-	if (n_slices == 0)
+    if(n_slices == 0)
 		holroyd_habit = 'M';
+        F_fine_detail = 0.; % need to assign a dummy value ~ Joe Finlon 11/3/19
 		return;
 	else
-		if (parabola_fit_center_is_in(image_buffer, n_slices) == 1) 
-			[x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_fine_detail, S_ratio] = calc_stat(handles,image_buffer, n_slices);
+        [x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_fine_detail, S_ratio] = calc_stat(handles,image_buffer, n_slices);
 
-			
+        if (area == 0 )
+            holroyd_habit = 'M';
+            return;
+        elseif (area < 25)
+            holroyd_habit = 't';
+            return;
+        elseif  (r2_correlation >= .4) || ( (d_length*probe_resolution < 1.6) && ( (x_length >= 4*y_length) ||  (y_length >= 4*x_length)))
 
-			if (area == 0 )
-				holroyd_habit = 'M';
-				return;
-			elseif (area < 25)
-				holroyd_habit = 't';
-				return;
-			elseif  (r2_correlation >= .4) | ( (d_length < 64) & ( (x_length >= 4*y_length) |  (y_length >= 4*x_length)))
-				
-				if ((a_angle> 30.0) & (a_angle < 60.0))
-					holroyd_habit = 'o';
-					return;
-				else
-					holroyd_habit = 'l';
-					return;
-				end
-			elseif ( (d_length * probe_resolution > 6.4 ) |	(d_length > 160.0)) 
-				holroyd_habit = 'a';
-				return;
-			elseif (S_ratio >= .7)
-				holroyd_habit = 'g';
-				return;
-            elseif (d_length >= 64)
-				if (F_fine_detail <= 13)
-					holroyd_habit = 'g';
-					return;
-				else
-					holroyd_habit = 'a';
-					return;
-				end
-			elseif (F_fine_detail < 5.5) 
-				holroyd_habit = 's';
-				return;
-			elseif (F_fine_detail < 10.0)
-				if (d_length >= 32)
-					holroyd_habit = 'g';
-					return;
-				else
-					holroyd_habit = 'h';
-					return;
-				end
-			elseif ((F_fine_detail < 16.0) | (x_length <= 7.0))
-				holroyd_habit = 'i';
-				return;
-			else
-				holroyd_habit = 'd';
-				return;
-			end
-				
-		else
-			holroyd_habit = 'C';
-			return;
+            if ((a_angle> 30.0) && (a_angle < 60.0))
+                holroyd_habit = 'o';
+                return;
+            else
+                holroyd_habit = 'l';
+                return;
+            end
+        elseif ( (d_length * probe_resolution > 4.0 )) %|| (d_length > 160.0)) 
+            holroyd_habit = 'a';
+            return;
+        elseif (S_ratio >= .7)
+            holroyd_habit = 'g';
+            return;
+        elseif (d_length * probe_resolution >= 1.6)
+            if (F_fine_detail <= 13)
+                holroyd_habit = 'g';
+                return;
+            else
+                holroyd_habit = 'a';
+                return;
+            end
+        elseif (F_fine_detail < 5.5) 
+            holroyd_habit = 's';
+            return;
+        elseif (F_fine_detail < 10.0)
+            if (d_length * probe_resolution >= 0.8)
+                holroyd_habit = 'g';
+                return;
+            else
+                holroyd_habit = 'h';
+                return;
+            end
+        elseif ((F_fine_detail < 16.0) || (x_length * probe_resolution <= 0.175))
+            holroyd_habit = 'i';
+            return;
+        else
+            holroyd_habit = 'd';
+            return;
         end
     end
 end
-
-%/*************************************************************************/
-		
-
 
 %/*************************************************************************/
 function [x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_fine_detail, S_ratio] = calc_stat(handles, image_buffer, n_slices)
 
 	BITS_PER_SLICE = handles.bits_per_slice;
     MAX_TWOD_DATA_LENGTH = 6000;
-
-
 
 	area = 0.0;
 	n_count = 0;
@@ -162,8 +147,6 @@ function [x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_f
                 n_count = n_count + 1;
 				p(n_count).x = tx;
 				p(n_count).y = ty;
-
-
 
 				fully_on_temp = fully_on_temp + 1;
 
@@ -234,14 +217,12 @@ function [x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_f
 		angle_radian = angle_radian + pi;
 	end
 
-
-
 	dmin_x = MAX_TWOD_DATA_LENGTH*3;
 	dmin_y = BITS_PER_SLICE;
 	dmax_x = 0;
 	dmax_y = 0;
 
-	if ( (angle_radian > (pi/2.0)) & (angle_radian <= (pi))) 
+	if ( (angle_radian > (pi/2.0)) && (angle_radian <= (pi))) 
 		angle_radian = (pi - angle_radian);
 	elseif ( angle_radian > pi) 
 		['HEY: something is wrong here  a_angle = ', num2str(a_angle)]; 
@@ -276,25 +257,3 @@ function [x_length, y_length, d_length, w_width,a_angle,area,r2_correlation, F_f
 		S_ratio = 0.0;
 	end
 end
-%/**************************************************************************/
-
-
-%/**************************************************************************/
-function result = parabola_fit_center_is_in(image_buffer, n_slices) 
-
-
-    result = 1;
-
-	return;
-
-end
-
-
-
-
-
-
-				
-
-
-
